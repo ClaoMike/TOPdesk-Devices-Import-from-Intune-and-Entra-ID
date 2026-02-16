@@ -1,29 +1,29 @@
 from Config import Config
 from ApiService import ApiService
 from IntuneDevice import IntuneDevice
+from TOPdesk import TOPdesk
 
 Config.load()
 ApiService.get_azure_access_token()
 
-devices = []
+topdesk_assets = TOPdesk.get_topdesk_assets()
+created_or_updated_devices = []
 
 __intune_url = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
 next_page = __intune_url
 
 while next_page:
     current_page_devices, next_page = ApiService.get_devices_from_page(next_page)
-    new_counter = 0
+
     for device in current_page_devices:
         intune_device = IntuneDevice(device)
-        matches = ApiService.get_topdesk_asset_by_name(intune_device).get("dataSet")
-        if len(matches) == 0:
-            ApiService.update_topdesk_asset(intune_device)
-            new_counter += 1
+        if intune_device.topdesk_asset_id not in topdesk_assets.keys(): # if the asset name does not exist
+            ApiService.create_topdesk_asset(intune_device) # we create it
+            created_or_updated_devices.append(intune_device.topdesk_asset_id)
         else:
-            # update
+            # we (eventually) update
+            created_or_updated_devices.append(intune_device.topdesk_asset_id)
             pass
-    print(f"Created {new_counter}/{len(current_page_devices)}")
 
-        # devices.append(intune_device)
-
-print(len(devices))
+# keep assets that are not in Intune and delete them
+TOPdesk.remove_device_assets_except(created_or_updated_devices)
