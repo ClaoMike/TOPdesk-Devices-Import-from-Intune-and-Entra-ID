@@ -6,6 +6,12 @@ from TOPdesk import TOPdesk
 Config.load()
 ApiService.get_azure_access_token()
 
+# TODO: we need update the Intune devices that need updating
+# TODO: we need to link their users as well
+# TODO: we need to fetch the Lenovo data
+# TODO: we need to fetch the Microsoft Defender data
+# TODO: we need to integrate the Azure Entra ID devices as well
+
 topdesk_assets = TOPdesk.get_topdesk_assets()
 created_or_updated_devices = []
 
@@ -21,7 +27,7 @@ while next_page:
             ApiService.create_topdesk_asset(intune_device) # we create it
             created_or_updated_devices.append(intune_device.topdesk_asset_id)
         else:
-            # we (eventually) update
+            # TODO: we (eventually) update
             created_or_updated_devices.append(intune_device.topdesk_asset_id)
             pass
 
