@@ -1,6 +1,5 @@
 from Config import Config
 import requests
-from IntuneDevice import IntuneDevice
 
 class ApiService:
     # Quick access variables -------------------------------------------------------------------------------------------

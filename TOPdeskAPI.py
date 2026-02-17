@@ -45,51 +45,69 @@ class TOPdeskAPI:
                 raise ValueError(error_message)
 
     @staticmethod
-    def get_topdesk_assets_by_templates(page_start: int = 0, page_size: int = 1000):
+    def get_topdesk_assets_by_templates(page_start: int = 0, page_size: int = 1000, ids=None, fields=None):
         if page_start < 0:
             raise ValueError("page_start must be >= 0")
-        if not (0 <= page_size <= 1000):
-            raise ValueError("page_size must be between 0 and 1000")
+        if not (1 <= page_size <= 1000):
+            raise ValueError("page_size must be between 1 and 1000")
 
-        response = requests.get(
-            url="https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets",
+        body = {
+            "templateId": [
+                Config.topdesk_computer_category_id,
+                Config.topdesk_mobile_category_id,
+                Config.topdesk_device_category_id
+            ],
+            "pageStart": page_start,
+            "pageSize": page_size,
+            "fetchData": True
+        }
+
+        if ids:
+            body["$filter"] = " or ".join(
+                f"name eq '{TOPdeskAPI.__esc(x)}'" for x in ids
+            )
+
+        if fields:
+            body["fields"] = fields
+
+        print(f"Body: {body}")
+
+        response = requests.post(
+            url="https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/filter",
             auth=(Config.topdesk_username, Config.topdesk_password),
-            headers={"Accept": "application/x.topdesk-am-assets-v2+json"},
-            params={
-                "$filter": (
-                    "templateId in ["
-                    f"'{Config.topdesk_computer_category_id}',"
-                    f"'{Config.topdesk_mobile_category_id}',"
-                    f"'{Config.topdesk_device_category_id}'"
-                    "]"
-                ),
-                "pageStart": page_start,
-                "pageSize": page_size
-            }
+            headers={
+                "Accept": "application/x.topdesk-am-assets-v2+json",
+                "Content-Type": "application/json",
+            },
+            json=body
         )
 
         if 200 <= response.status_code < 300:
+            print(response.json())
             return response.json()
-        else:
-            error_message = f"Error {response.status_code}: {response.text}"
-            print(error_message)
-            raise ValueError(error_message)
 
-    @staticmethod
-    def get_topdesk_asset_by_name(asset: IntuneDevice):
-        response = requests.get(
-            url=        f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets",
-            auth=       (Config.topdesk_username, Config.topdesk_password),
-            headers=    {"Accept": "application/x.topdesk-am-assets-v2+json"},
-            params=     {"$filter": f"name eq '{asset.topdesk_asset_id}'"}
-        )
+        error_message = f"Error {response.status_code}: {response.text}"
+        print(error_message)
+        raise ValueError(error_message)
 
-        if 200 <= response.status_code < 300:
-            return response.json()
-        else:
-            error_message = f"Error {response.status_code}: {response.text}"
-            print(error_message)
-            raise ValueError(error_message)
+    def __esc(s: str) -> str:
+        return str(s).replace("'", "''")
+
+    # @staticmethod
+    # def get_topdesk_asset_by_name(asset: IntuneDevice):
+    #     response = requests.get(
+    #         url=        f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets",
+    #         auth=       (Config.topdesk_username, Config.topdesk_password),
+    #         headers=    {"Accept": "application/x.topdesk-am-assets-v2+json"},
+    #         params=     {"$filter": f"name eq '{asset.topdesk_asset_id}'"}
+    #     )
+    #
+    #     if 200 <= response.status_code < 300:
+    #         return response.json()
+    #     else:
+    #         error_message = f"Error {response.status_code}: {response.text}"
+    #         print(error_message)
+    #         raise ValueError(error_message)
 
     @staticmethod
     def create_topdesk_asset(asset: IntuneDevice):

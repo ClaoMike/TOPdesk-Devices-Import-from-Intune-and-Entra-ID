@@ -67,6 +67,10 @@ class IntuneDevice:
             # "warranty-url": self.lenovo_product_webpage_url,
         }
 
+    @staticmethod
+    def get_fields():
+        return ",".join(IntuneDevice({}).to_json().keys())
+
     def __bytes_to_gb(bytes_value: int, decimals: int = 0) -> float:
         """Convert bytes to decimal gigabytes (GB)."""
         if bytes_value is None:

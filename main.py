@@ -1,9 +1,7 @@
 from Config import Config
 from ApiService import ApiService
-from IntuneDevice import IntuneDevice
 from TOPdesk import TOPdesk
 from Settings import Settings
-from TOPdeskAPI import TOPdeskAPI
 
 # TODO: we need update the Intune devices that need updating
 # TODO: we need to link their users as well
