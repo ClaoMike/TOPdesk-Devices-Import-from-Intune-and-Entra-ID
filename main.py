@@ -4,6 +4,7 @@ from TOPdesk import TOPdesk
 from Settings import Settings
 
 # TODO: we need update the Intune devices that need updating
+# TODO: we need a stable format for dates, as TOPdesk and intune have different formats
 # TODO: we need to link their users as well
 # TODO: we need to fetch the Lenovo data
 # TODO: we need to fetch the Microsoft Defender data

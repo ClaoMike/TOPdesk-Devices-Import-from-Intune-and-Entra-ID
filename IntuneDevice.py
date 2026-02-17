@@ -67,6 +67,109 @@ class IntuneDevice:
             # "warranty-url": self.lenovo_product_webpage_url,
         }
 
+    def requiresUpdate(self, target: dict) -> bool:
+        # if self.__azureADDeviceId                       != target.get("azure-id"):
+        #     return False
+        #
+        # if self.__azureADRegistered                     != target.get("azure-ad-registered"):
+        #     return False
+        #
+        # if self.__complianceState                       != target.get("compliance-status"):
+        #     return False
+        #
+        # if self.__deviceName                            != target.get("name-1"):
+        #     return False
+        #
+        # if self.__enrolledDateTime                      != target.get("enrollment-date"):
+        #     return False
+        #
+        # if self.__freeStorageSpaceInBytes               != target.get("free-storage"):
+        #     return False
+        #
+        # if self.__id                                    != target.get("intune-id"):
+        #     return False
+        #
+        # if self.__isEncrypted                           != target.get("encrypted"):
+        #     return False
+        #
+        # if self.__imei                                  != target.get("imei"):
+        #     return False
+        #
+        # if self.__isSupervised                          != target.get("ismanaged"):
+        #     return False
+        #
+        # if self.__lastSyncDateTime                      != target.get("last-check-in"):
+        #     return False
+        #
+        # if self.__managedDeviceOwnerType                != target.get("ownership"):
+        #     return False
+        #
+        # if self.__managementCertificateExpirationDate   != target.get("management-certificate-expiration-date"):
+        #     return False
+        #
+        # if self.__manufacturer                          != target.get("manufacturer-1"):
+        #     return False
+        #
+        # if self.__model                                 != target.get("model-1"):
+        #     return False
+        #
+        # if self.__operatingSystem                       != target.get("operating-system"):
+        #     return False
+        #
+        # if self.__osVersion                             != target.get("os-version"):
+        #     return False
+        #
+        # if self.__serialNumber                          != target.get("serial-number"):
+        #     return False
+        #
+        # if self.__subscriberCarrier                     != target.get("subscriber-carrier"):
+        #     return False
+        #
+        # if self.__totalStorageSpaceInBytes              != target.get("total-storage"):
+        #     return False
+        #
+        # if self.__userId                                != target.get("user-id"):
+        #     return False
+
+        return not (
+                IntuneDevice.__areEqual(self.__azureADDeviceId, target.get("azure-id")) and
+                IntuneDevice.__areEqual(self.__azureADRegistered, target.get("azure-ad-registered")) and
+                IntuneDevice.__areEqual(self.__complianceState, target.get("compliance-status")) and
+                IntuneDevice.__areEqual(self.__deviceName, target.get("name-1")) and
+                IntuneDevice.__areEqual(self.__enrolledDateTime, target.get("enrollment-date")) and
+                IntuneDevice.__areEqual(self.__freeStorageSpaceInBytes, target.get("free-storage")) and
+                IntuneDevice.__areEqual(self.__id, target.get("intune-id")) and
+                IntuneDevice.__areEqual(self.__isEncrypted, target.get("encrypted")) and
+                IntuneDevice.__areEqual(self.__imei, target.get("imei")) and
+                IntuneDevice.__areEqual(self.__isSupervised, target.get("ismanaged")) and
+                IntuneDevice.__areEqual(self.__lastSyncDateTime, target.get("last-check-in")) and
+                IntuneDevice.__areEqual(self.__managedDeviceOwnerType, target.get("ownership")) and
+                IntuneDevice.__areEqual(self.__managementCertificateExpirationDate, target.get("management-certificate-expiration-date")) and
+                IntuneDevice.__areEqual(self.__manufacturer, target.get("manufacturer-1")) and
+                IntuneDevice.__areEqual(self.__model, target.get("model-1")) and
+                IntuneDevice.__areEqual(self.__operatingSystem, target.get("operating-system")) and
+                IntuneDevice.__areEqual(self.__osVersion, target.get("os-version")) and
+                IntuneDevice.__areEqual(self.__serialNumber, target.get("serial-number")) and
+                IntuneDevice.__areEqual(self.__subscriberCarrier, target.get("subscriber-carrier")) and
+                IntuneDevice.__areEqual(self.__totalStorageSpaceInBytes, target.get("total-storage")) and
+                IntuneDevice.__areEqual(self.__userId, target.get("user-id"))
+        )
+
+        # 'unid': 'e032024f-d1aa-41f2-99d2-f779b1201de5'
+        # '@@summary': ''
+        # '@statusLocked': False
+        # 'archived': False
+        # '@etag': '2026-02-17T11:49:34.234         '
+        # 'type_id': '5F0A918A-1802-412B-A86D-CD4634AE6444'
+        # '@status': 'OPERATIONAL'
+        # 'modificationDate': '2026-02-17T11:49:34.234'
+
+    @staticmethod
+    def __areEqual(a, b) -> bool:
+        print("Comparing Intune vs. TOPdesk values")
+        print(f"Comparing {a} vs. {b}\n")
+        return a==b
+
     @staticmethod
     def get_fields():
         return ",".join(IntuneDevice({}).to_json().keys())
@@ -76,5 +179,3 @@ class IntuneDevice:
         if bytes_value is None:
             return 0.0
         return round(bytes_value / 1_000_000_000, decimals)
-
-

@@ -2,10 +2,9 @@ from TOPdeskAPI import TOPdeskAPI
 from IntuneDevice import IntuneDevice
 
 class TOPdesk:
-
     @staticmethod
     def create_topdesk_assets(current_page_devices):
-        topdesk_assets_by_name_and_id_dictionary = TOPdesk.get_topdesk_assets_as_asset_id_and_object_id_dictionary().keys()
+        topdesk_assets_by_name_and_id_dictionary = TOPdesk.__get_topdesk_assets_as_asset_id_and_object_id_dictionary().keys()
 
         # create a copy, do not remove items while iterating the array
         current_page_devices_copy = current_page_devices.copy()
@@ -22,29 +21,37 @@ class TOPdesk:
 
     @staticmethod
     def update_topdesk_assets(current_page_devices):
-        updatable_assets = {}
+        intune_devices = {}
         for device in current_page_devices:
             intune_device = IntuneDevice(device)
-            updatable_assets[intune_device.topdesk_asset_id] = intune_device
+            intune_devices[intune_device.topdesk_asset_id] = intune_device
 
-        response = TOPdesk.get_topdesk_assets(updatable_assets.keys())
-        print(f"Response: {response}")
+        devices_as_topdesk_assets = TOPdesk.__get_topdesk_assets(intune_devices.keys())
+
+        for asset_ID in devices_as_topdesk_assets.keys():
+            intune_device = intune_devices.get(asset_ID)
+            topdesk_asset = devices_as_topdesk_assets.get(asset_ID)
+
+            print(f'\n{asset_ID}')
+            if intune_device.requiresUpdate(topdesk_asset):
+                print("Requires update")
 
     @staticmethod
-    def get_topdesk_assets(ids):
+    def __get_topdesk_assets(ids):
         topdesk_assets = {}
 
         page_start = 0
         page_size = 1000
         while True:
-            current_page_assets = TOPdeskAPI.get_topdesk_assets_by_templates(page_start=page_start,
-                                                                             page_size=page_size,
-                                                                             ids=ids,
-                                                                             fields=IntuneDevice.get_fields()).get("dataSet")
+            current_page_assets = TOPdeskAPI.get_topdesk_assets_by_templates(
+                page_start=page_start,
+                page_size=page_size,
+                ids=ids,
+                fields=IntuneDevice.get_fields()
+            ).get("dataSet")
+
             for asset in current_page_assets:
-                print(asset)
-            # for asset in current_page_assets:
-            #     topdesk_assets[asset.get("text")] = asset.get("id")
+                topdesk_assets[asset.get('name')] = asset
 
             if len(current_page_assets) == 0:
                 break
@@ -54,7 +61,7 @@ class TOPdesk:
         return topdesk_assets
 
     @staticmethod
-    def get_topdesk_assets_as_asset_id_and_object_id_dictionary():
+    def __get_topdesk_assets_as_asset_id_and_object_id_dictionary():
         topdesk_assets = {}
 
         page_start = 0
