@@ -68,8 +68,7 @@ class ApiService:
                     "]"
                 ),
                 "pageStart": page_start,
-                "pageSize": page_size,
-                "archived": False
+                "pageSize": page_size
             }
         )
 
@@ -110,6 +109,7 @@ class ApiService:
         else:
             error_message = f"Error {response.status_code}: {response.text}"
             print(error_message)
+            print(asset.to_json())
             raise ValueError(error_message)
 
     # Microsoft Graph Endpoints ----------------------------------------------------------------------------------------

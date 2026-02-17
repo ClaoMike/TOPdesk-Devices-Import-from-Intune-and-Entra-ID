@@ -1,0 +1,2 @@
+class Settings:
+    FETCH_JUST_ONE_PAGE_OF_INTUNE_DEVICES = True

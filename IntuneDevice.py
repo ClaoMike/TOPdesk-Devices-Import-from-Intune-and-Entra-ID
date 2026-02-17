@@ -29,8 +29,30 @@ class IntuneDevice:
 
     def to_json(self):
         return {
-            "name":     self.topdesk_asset_id,
-            "type_id":  OSClassifier.get_device_template(self.__device_type)
+            "name":                                     self.topdesk_asset_id,
+            "type_id":                                  OSClassifier.get_device_template(self.__device_type),
+
+            "azure_id":                                 self.__azureADDeviceId,
+            "azure_ad_registered":                      self.__azureADRegistered,
+            "compliance_status":                        self.__complianceState,
+            "name_1":                                   self.__deviceName,
+            "enrollment_date":                          self.__enrolledDateTime,
+            "free_storage":                             self.__freeStorageSpaceInBytes,
+            "intune_id":                                self.__id,
+            "encrypted":                                self.__isEncrypted,
+            "imei":                                     self.__imei,
+            "ismanaged":                                self.__isSupervised,
+            "last_check_in":                            self.__lastSyncDateTime,
+            "ownership":                                self.__managedDeviceOwnerType,
+            "management_certificate_expiration_date":   self.__managementCertificateExpirationDate,
+            "manufacturer_1":                           self.__manufacturer,
+            "model_1":                                  self.__model,
+            "operating_system":                         self.__operatingSystem,
+            "os_version":                               self.__osVersion,
+            "serial_number":                            self.__serialNumber,
+            "subscriber_carrier":                       self.__subscriberCarrier,
+            "total_storage":                            self.__totalStorageSpaceInBytes,
+            "user_id":                                  self.__userId
 
             # "last-ip-address": getattr(self, "last_ip_address", None),
             # "exposure-level": getattr(self, "exposure_level", None),
