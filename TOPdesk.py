@@ -41,23 +41,23 @@ class TOPdesk:
 
         return topdesk_assets
 
-    @staticmethod
-    def remove_device_assets_except(exceptions):
-        topdesk_assets = TOPdesk.get_topdesk_assets_as_asset_id_and_object_id_dictionary()
-        for asset in exceptions:
-            if asset in topdesk_assets.keys():
-                topdesk_assets.pop(asset)
-        topdesk_assets = list(topdesk_assets.values())
-
-        page_start = 0
-        page_size = 100
-        while True:
-            if len(topdesk_assets[page_start:page_start + page_size]) == 0:
-                break
-
-            failed = TOPdeskAPI.delete_assets(topdesk_assets[page_start:page_start + page_size])
-            page_start += page_size
-
-            # archive the failed ones
-            for asset in failed:
-                TOPdeskAPI.archive_asset(asset)
+    # @staticmethod
+    # def remove_device_assets_except(exceptions):
+    #     topdesk_assets = TOPdesk.get_topdesk_assets_as_asset_id_and_object_id_dictionary()
+    #     for asset in exceptions:
+    #         if asset in topdesk_assets.keys():
+    #             topdesk_assets.pop(asset)
+    #     topdesk_assets = list(topdesk_assets.values())
+    #
+    #     page_start = 0
+    #     page_size = 100
+    #     while True:
+    #         if len(topdesk_assets[page_start:page_start + page_size]) == 0:
+    #             break
+    #
+    #         failed = TOPdeskAPI.delete_assets(topdesk_assets[page_start:page_start + page_size])
+    #         page_start += page_size
+    #
+    #         # archive the failed ones
+    #         for asset in failed:
+    #             TOPdeskAPI.archive_asset(asset)

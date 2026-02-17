@@ -37,7 +37,7 @@ class IntuneDevice:
             "compliance-status":                        self.__complianceState,
             "name-1":                                   self.__deviceName,
             "enrollment-date":                          self.__enrolledDateTime,
-            "free-storage":                             self.__freeStorageSpaceInBytes,
+            "free-storage":                             f"{IntuneDevice.__bytes_to_gb(bytes_value=self.__freeStorageSpaceInBytes)} GB",
             "intune-id":                                self.__id,
             "encrypted":                                self.__isEncrypted,
             "imei":                                     self.__imei,
@@ -51,7 +51,7 @@ class IntuneDevice:
             "os-version":                               self.__osVersion,
             "serial-number":                            self.__serialNumber,
             "subscriber-carrier":                       self.__subscriberCarrier,
-            "total-storage":                            self.__totalStorageSpaceInBytes,
+            "total-storage":                            f"{IntuneDevice.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes)} GB",
             "user-id":                                  self.__userId
 
             # "last-ip-address": getattr(self, "last_ip_address", None),
@@ -66,4 +66,11 @@ class IntuneDevice:
             # "number-of-days-until-the-warranty-expires": self.number_of_days_left_until_the_warranty_expires,
             # "warranty-url": self.lenovo_product_webpage_url,
         }
+
+    def __bytes_to_gb(bytes_value: int, decimals: int = 0) -> float:
+        """Convert bytes to decimal gigabytes (GB)."""
+        if bytes_value is None:
+            return 0.0
+        return round(bytes_value / 1_000_000_000, decimals)
+
 
