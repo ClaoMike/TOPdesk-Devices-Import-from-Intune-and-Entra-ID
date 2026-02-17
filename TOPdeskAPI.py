@@ -99,8 +99,9 @@ class TOPdeskAPI:
             headers=    {'Content-Type': 'application/json'},
             json=       asset.to_json()
         )
-
+        print(f"Creating: {asset.to_json()}")
         if 200 <= response.status_code < 300:
+            print(f"Response: {response.json()}\n")
             return
         else:
             error_message = f"Error {response.status_code}: {response.text}"

@@ -15,12 +15,16 @@ class TOPdesk:
             intune_device = IntuneDevice(device)
 
             # if the IntuneDevice has an Asset ID that is not present in TOPdesk yet, we must create the asset
-            if intune_device.topdesk_asset_id not in TOPdesk.get_topdesk_assets().keys():
+            if intune_device.topdesk_asset_id not in TOPdesk.get_topdesk_assets_as_asset_id_and_object_id_dictionary().keys():
                 TOPdeskAPI.create_topdesk_asset(intune_device)
                 current_page_devices.remove(device)  # we've handled it, so it does not need further processing
 
     @staticmethod
-    def get_topdesk_assets():
+    def update_topdesk_assets(current_page_devices):
+        pass
+
+    @staticmethod
+    def get_topdesk_assets_as_asset_id_and_object_id_dictionary():
         topdesk_assets = {}
 
         page_start = 0
@@ -39,7 +43,7 @@ class TOPdesk:
 
     @staticmethod
     def remove_device_assets_except(exceptions):
-        topdesk_assets = TOPdesk.get_topdesk_assets()
+        topdesk_assets = TOPdesk.get_topdesk_assets_as_asset_id_and_object_id_dictionary()
         for asset in exceptions:
             if asset in topdesk_assets.keys():
                 topdesk_assets.pop(asset)

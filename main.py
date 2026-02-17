@@ -28,6 +28,7 @@ while next_page:
     TOPdesk.create_topdesk_assets(current_page_devices)
 
     # current_page_devices contains devices that might need to be updated
+    TOPdesk.update_topdesk_assets(current_page_devices)
 
     ### Load just one page of Intune devices when in development
     if Settings.FETCH_JUST_ONE_PAGE_OF_INTUNE_DEVICES:
