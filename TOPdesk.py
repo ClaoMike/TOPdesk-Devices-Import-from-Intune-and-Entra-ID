@@ -35,6 +35,11 @@ class TOPdesk:
             print(f'\n{asset_ID}')
             if intune_device.requiresUpdate(topdesk_asset):
                 print("Requires update")
+                TOPdeskAPI.update_topdesk_asset(
+                    template_id=topdesk_asset.get('type_id'),
+                    asset_id=topdesk_asset.get('unid'),
+                    device=intune_device
+                )
 
     @staticmethod
     def __get_topdesk_assets(ids):

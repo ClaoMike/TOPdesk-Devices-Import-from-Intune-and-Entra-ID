@@ -26,14 +26,10 @@ class TOPdeskAPI:
             print(f"Deleting {len(assets)} assets")
 
             response = requests.post(
-                url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/delete",
-                auth=(Config.topdesk_username, Config.topdesk_password),
-                headers={
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'unids': assets
-                }
+                url=        f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/delete",
+                auth=       (Config.topdesk_username, Config.topdesk_password),
+                headers=    {'Content-Type': 'application/json'},
+                json=       {'unids': assets}
             )
 
             if 200 <= response.status_code < 300:
@@ -73,17 +69,16 @@ class TOPdeskAPI:
         print(f"Body: {body}")
 
         response = requests.post(
-            url="https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/filter",
-            auth=(Config.topdesk_username, Config.topdesk_password),
-            headers={
-                "Accept": "application/x.topdesk-am-assets-v2+json",
-                "Content-Type": "application/json",
-            },
-            json=body
+            url=        "https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/filter",
+            auth=       (Config.topdesk_username, Config.topdesk_password),
+            headers=    {
+                            "Accept": "application/x.topdesk-am-assets-v2+json",
+                            "Content-Type": "application/json",
+                        },
+            json=       body
         )
 
         if 200 <= response.status_code < 300:
-            print(response.json())
             return response.json()
 
         error_message = f"Error {response.status_code}: {response.text}"
@@ -125,4 +120,23 @@ class TOPdeskAPI:
             error_message = f"Error {response.status_code}: {response.text}"
             print(error_message)
             print(asset.to_json())
+            raise ValueError(error_message)
+
+    @staticmethod
+    def update_topdesk_asset(asset_id, template_id, device: IntuneDevice):
+        # response = requests.patch(
+        response = requests.post(
+            # url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{template_id}/{asset_id}",
+            url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{asset_id}",
+            auth=(Config.topdesk_username, Config.topdesk_password),
+            headers={'Content-Type': 'application/json'},
+            json=device.to_json()
+        )
+        if 200 <= response.status_code < 300:
+            print(f"Response: {response.json()}\n")
+            return
+        else:
+            error_message = f"Error {response.status_code}: {response.text}"
+            print(error_message)
+            print(device.to_json())
             raise ValueError(error_message)
