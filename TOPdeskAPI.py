@@ -112,13 +112,14 @@ class TOPdeskAPI:
         )
         if 200 <= response.status_code < 300:
             print(f"Response: {response.json()}\n")
-            return
+            return response.json()
         else:
             error_message = f"Error {response.status_code}: {response.text}"
             print(error_message)
             print(device.to_json())
             raise ValueError(error_message)
 
+    @staticmethod
     def get_topdesk_user_id_by_mainframe(user_id):
         response = requests.get(
             url=        f"https://dlfseeds.topdesk.net/tas/api/persons?query=mainframeLoginName=={user_id}",
@@ -140,6 +141,7 @@ class TOPdeskAPI:
             error_message = f"Error {response.status_code}: {response.text}"
             raise ValueError(error_message)
 
+    @staticmethod
     def assign_user(topdesk_person_card_id, topdesk_asset_id):
         response = requests.put(
             url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{topdesk_asset_id}/assignments",
@@ -155,6 +157,39 @@ class TOPdeskAPI:
 
         if 200 <= response.status_code < 300:
             return
+        else:
+            error_message = f"Error {response.status_code}: {response.text}"
+            raise ValueError(error_message)
+
+    @staticmethod
+    def get_asset_assignments(asset_id):
+        response = requests.get(
+            url=        f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{asset_id}/assignments",
+            auth=       (Config.topdesk_username, Config.topdesk_password),
+            headers=    {'Content-Type': 'application/json'},
+        )
+
+        if 200 <= response.status_code < 300:
+            try:
+                return response.json()
+            except:
+                return None
+        else:
+            error_message = f"Error {response.status_code}: {response.text}"
+            raise ValueError(error_message)
+
+    @staticmethod
+    def remove_asset_assignment_person(asset_id, link_id):
+        response = requests.delete(
+            url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{asset_id}/assignments/{link_id}",
+            auth=(Config.topdesk_username, Config.topdesk_password),
+            headers={
+                'Content-Type': 'application/json'
+            },
+        )
+
+        if 200 <= response.status_code < 300:
+            print("Successfully deleted the assignment link!")
         else:
             error_message = f"Error {response.status_code}: {response.text}"
             raise ValueError(error_message)

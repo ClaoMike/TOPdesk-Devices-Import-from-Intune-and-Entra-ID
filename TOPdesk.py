@@ -18,21 +18,10 @@ class TOPdesk:
             if intune_device.topdesk_asset_id not in topdesk_assets_by_name_and_id_dictionary:
                 # create and save the response
                 topdesk_asset = TOPdeskAPI.create_topdesk_asset(intune_device)
+                TOPdesk.__assign_user(topdesk_asset)
 
                 # we've handled it, so it does not need to be checked for updates
                 current_page_devices.remove(device)
-
-                # extract the id from the newly crated topdesk asset
-                topdesk_asset_id = topdesk_asset.get('data').get('unid')
-
-                # if there is a user ID assigned to the intune device
-                if intune_device.userId != None and intune_device.userId != '':
-                    # fetch the topdesk user that has this userID stored inside its mainframe field
-                    topdesk_user_card_id = TOPdeskAPI.get_topdesk_user_id_by_mainframe(intune_device.userId)
-
-                    # if there is a match, link the user to the id
-                    if topdesk_user_card_id != None:
-                        TOPdeskAPI.assign_user(topdesk_user_card_id, topdesk_asset_id)
 
     @staticmethod
     def update_topdesk_assets(current_page_devices):
@@ -55,11 +44,30 @@ class TOPdesk:
 
             if intune_device.requiresUpdate(topdesk_asset):
                 print(f'Asset {asset_ID} requires an update!')
-                TOPdeskAPI.update_topdesk_asset(
-                    template_id=topdesk_asset.get('type_id'),
+                topdesk_asset = TOPdeskAPI.update_topdesk_asset(
                     asset_id=topdesk_asset.get('unid'),
                     device=intune_device
                 )
+                TOPdesk.__assign_user(topdesk_asset)
+
+    @staticmethod
+    def __assign_user(topdesk_asset):
+        asset_id    = topdesk_asset.get('data').get('unid')
+        user_id     = topdesk_asset.get('data').get('user-id')
+
+        linked_persons = TOPdeskAPI.get_asset_assignments(asset_id).get('persons')
+        for person in linked_persons:
+            link_id = person.get('linkId')
+            TOPdeskAPI.remove_asset_assignment_person(asset_id=asset_id,link_id=link_id)
+
+        # if there is a user ID assigned to the intune device
+        if user_id is not None and user_id != '':
+            # fetch the topdesk user that has this userID stored inside its mainframe field
+            topdesk_user_card_id = TOPdeskAPI.get_topdesk_user_id_by_mainframe(user_id)
+
+            # if there is a match, link the user to the id
+            if topdesk_user_card_id is not None:
+                TOPdeskAPI.assign_user(topdesk_user_card_id, asset_id)
 
     @staticmethod
     def remove_device_assets_except(exceptions):
