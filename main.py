@@ -23,6 +23,7 @@ while next_page:
     # fetch a page of intune devices, and the url for the next page
     current_page_devices, next_page = ApiService.get_devices_from_page(next_page)
 
+    # compute and store the topdesk Asset ID of the Intune devices
     for device in current_page_devices:
         topdesk_assets_that_must_not_be_deleted.append(IntuneDevice(device).topdesk_asset_id)
 
@@ -36,5 +37,5 @@ while next_page:
     if Settings.FETCH_JUST_ONE_PAGE_OF_INTUNE_DEVICES:
         next_page = None
 
-# keep assets that are not in Intune and delete them
+# delete assets in TOPdesk that are not in Intune anymore
 TOPdesk.remove_device_assets_except(topdesk_assets_that_must_not_be_deleted)

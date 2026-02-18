@@ -3,7 +3,6 @@ import requests
 from IntuneDevice import IntuneDevice
 
 class TOPdeskAPI:
-    # TOPdesk Endpoints ------------------------------------------------------------------------------------------------
     @staticmethod
     def archive_asset(asset_id: str):
         response = requests.post(
@@ -85,25 +84,6 @@ class TOPdeskAPI:
         print(error_message)
         raise ValueError(error_message)
 
-    def __esc(s: str) -> str:
-        return str(s).replace("'", "''")
-
-    # @staticmethod
-    # def get_topdesk_asset_by_name(asset: IntuneDevice):
-    #     response = requests.get(
-    #         url=        f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets",
-    #         auth=       (Config.topdesk_username, Config.topdesk_password),
-    #         headers=    {"Accept": "application/x.topdesk-am-assets-v2+json"},
-    #         params=     {"$filter": f"name eq '{asset.topdesk_asset_id}'"}
-    #     )
-    #
-    #     if 200 <= response.status_code < 300:
-    #         return response.json()
-    #     else:
-    #         error_message = f"Error {response.status_code}: {response.text}"
-    #         print(error_message)
-    #         raise ValueError(error_message)
-
     @staticmethod
     def create_topdesk_asset(asset: IntuneDevice):
         response = requests.post(
@@ -140,3 +120,22 @@ class TOPdeskAPI:
             print(error_message)
             print(device.to_json())
             raise ValueError(error_message)
+
+    def __esc(s: str) -> str:
+        return str(s).replace("'", "''")
+
+    # @staticmethod
+    # def get_topdesk_asset_by_name(asset: IntuneDevice):
+    #     response = requests.get(
+    #         url=        f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets",
+    #         auth=       (Config.topdesk_username, Config.topdesk_password),
+    #         headers=    {"Accept": "application/x.topdesk-am-assets-v2+json"},
+    #         params=     {"$filter": f"name eq '{asset.topdesk_asset_id}'"}
+    #     )
+    #
+    #     if 200 <= response.status_code < 300:
+    #         return response.json()
+    #     else:
+    #         error_message = f"Error {response.status_code}: {response.text}"
+    #         print(error_message)
+    #         raise ValueError(error_message)

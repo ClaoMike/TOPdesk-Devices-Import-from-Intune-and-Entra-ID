@@ -145,8 +145,9 @@ class IntuneDevice:
 
     @staticmethod
     def __areEqual(a, b) -> bool:
-        # print("Comparing Intune vs. TOPdesk values")
-        # print(f"Comparing {a} vs. {b}\n")
+        if a!=b:
+            print("Comparing Intune vs. TOPdesk values")
+            print(f"Comparing {a} vs. {b}\n")
         return a==b
 
     @staticmethod
