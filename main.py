@@ -4,9 +4,12 @@ from TOPdesk import TOPdesk
 from Settings import Settings
 from IntuneDevice import IntuneDevice
 
-# TODO: we need to fetch the Lenovo data
-# TODO: we need to fetch the Microsoft Defender data
-# TODO: we need to integrate the Azure Entra ID devices as well
+# TODO #################################################################################################################
+# TODO 1. Organize code - folders ######################################################################################
+# TODO 2. Fetch Lenovo data ############################################################################################
+# TODO 3. Fetch Microsoft Defender data ################################################################################
+# TODO 4. Import Azure Entra ID devices ################################################################################
+# TODO #################################################################################################################
 
 # load config - contains ids and credentials for using various APIs
 Config.load()
