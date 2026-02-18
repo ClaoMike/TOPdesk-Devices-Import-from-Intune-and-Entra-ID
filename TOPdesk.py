@@ -45,11 +45,17 @@ class TOPdesk:
 
             if intune_device.requiresUpdate(topdesk_asset):
                 print(f'Asset {asset_ID} requires an update!')
+                # first, unarchive it if it is archived
+                if topdesk_asset.get('archived'):
+                    TOPdeskAPI.unarchive_asset(topdesk_asset.get('unid'))
+
+                # then update
                 topdesk_asset = TOPdeskAPI.update_topdesk_asset(
                     asset_id=topdesk_asset.get('unid'),
                     device=intune_device
                 )
-                # assign the user to it, if any
+
+                # finally, assign the user to it, if any
                 TOPdesk.__assign_user(topdesk_asset)
 
     @staticmethod
@@ -96,8 +102,8 @@ class TOPdesk:
             page_start += page_size
 
             # archive the failed ones
-            # for asset in failed:
-            # TOPdeskAPI.archive_asset(asset)
+            for asset in failed:
+                TOPdeskAPI.archive_asset(asset)
 
     @staticmethod
     def __get_topdesk_assets(ids):

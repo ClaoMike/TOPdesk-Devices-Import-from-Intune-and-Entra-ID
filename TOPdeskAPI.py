@@ -13,7 +13,23 @@ class TOPdeskAPI:
         )
 
         if 200 <= response.status_code < 300:
-            print(response.json())
+            print(f"Archived asset {asset_id}!")
+            return
+        else:
+            error_message = f"Error {response.status_code}: {response.text}"
+            raise ValueError(error_message)
+
+    @staticmethod
+    def unarchive_asset(asset_id: str):
+        response = requests.post(
+            url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{asset_id}/unarchive",
+            auth=(Config.topdesk_username, Config.topdesk_password),
+            headers={'Content-Type': 'application/json'},
+            json={"reasonId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"}
+        )
+
+        if 200 <= response.status_code < 300:
+            print(f"Unarchived asset {asset_id}!")
             return
         else:
             error_message = f"Error {response.status_code}: {response.text}"
