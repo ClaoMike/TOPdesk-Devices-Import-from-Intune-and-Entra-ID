@@ -102,8 +102,41 @@ class TOPdesk:
             page_start += page_size
 
             # archive the failed ones
+            TOPdesk.__filter_out_archived_assets(failed)
+
             for asset in failed:
                 TOPdeskAPI.archive_asset(asset)
+
+    @staticmethod
+    def __filter_out_archived_assets(failed_to_delete_assets):
+        archived_topdesk_assets = TOPdesk.__get_topdesk_assets_archived_field_only(failed_to_delete_assets)
+        for asset in archived_topdesk_assets:
+            failed_to_delete_assets.remove(asset)
+
+    @staticmethod
+    def __get_topdesk_assets_archived_field_only(ids):
+        archived_topdesk_assets = []
+
+        page_start = 0
+        page_size = 1000
+        while True:
+            current_page_assets = TOPdeskAPI.get_topdesk_assets_by_templates(
+                page_start=page_start,
+                page_size=page_size,
+                ids=ids,
+                fields='archived'
+            ).get("dataSet")
+
+            for asset in current_page_assets:
+                if asset.get('archived'):
+                    archived_topdesk_assets.append(asset.get('unid'))
+
+            if len(current_page_assets) == 0:
+                break
+
+            page_start += page_size
+
+        return archived_topdesk_assets
 
     @staticmethod
     def __get_topdesk_assets(ids):
@@ -115,7 +148,7 @@ class TOPdesk:
             current_page_assets = TOPdeskAPI.get_topdesk_assets_by_templates(
                 page_start=page_start,
                 page_size=page_size,
-                ids=ids,
+                names=ids,
                 fields=IntuneDevice.get_fields()
             ).get("dataSet")
 

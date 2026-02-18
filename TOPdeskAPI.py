@@ -3,6 +3,8 @@ import requests
 from IntuneDevice import IntuneDevice
 
 class TOPdeskAPI:
+
+    # Archive/Unarchive assets -----------------------------------------------------------------------------------------
     @staticmethod
     def archive_asset(asset_id: str):
         response = requests.post(
@@ -35,6 +37,8 @@ class TOPdeskAPI:
             error_message = f"Error {response.status_code}: {response.text}"
             raise ValueError(error_message)
 
+    # ------------------------------------------------------------------------------------------------------------------
+
     @staticmethod
     def delete_assets(assets):
         if len(assets) != 0:
@@ -56,7 +60,7 @@ class TOPdeskAPI:
                 raise ValueError(error_message)
 
     @staticmethod
-    def get_topdesk_assets_by_templates(page_start: int = 0, page_size: int = 1000, ids=None, fields=None):
+    def get_topdesk_assets_by_templates(page_start: int = 0, page_size: int = 1000, names=None, ids=None, fields=None):
         if page_start < 0:
             raise ValueError("page_start must be >= 0")
         if not (1 <= page_size <= 1000):
@@ -73,10 +77,32 @@ class TOPdeskAPI:
             "fetchData": True
         }
 
-        if ids:
-            body["$filter"] = " or ".join(
-                f"name eq '{TOPdeskAPI.__esc(x)}'" for x in ids
+        # if names:
+        #     body["$filter"] = " or ".join(
+        #         f"name eq '{TOPdeskAPI.__esc(x)}'" for x in names
+        #     )
+        #
+        # if ids:
+        #     body["$filter"] = " or ".join(
+        #         f"unid eq '{TOPdeskAPI.__esc(x)}'" for x in names
+        #     )
+
+        filters = []
+
+        if names:
+            filters.extend(
+                f"name eq '{TOPdeskAPI.__esc(x)}'"
+                for x in names
             )
+
+        if ids:
+            filters.extend(
+                f"unid eq '{TOPdeskAPI.__esc(x)}'"
+                for x in ids
+            )
+
+        if filters:
+            body["$filter"] = " or ".join(filters)
 
         if fields:
             body["fields"] = fields
