@@ -2,6 +2,7 @@ from TOPdeskAPI import TOPdeskAPI
 from IntuneDevice import IntuneDevice
 
 class TOPdesk:
+    # Public -----------------------------------------------------------------------------------------------------------
     @staticmethod
     def create_topdesk_assets(current_page_devices):
         topdesk_assets_by_name_and_id_dictionary = TOPdesk.__get_topdesk_assets_as_asset_id_and_object_id_dictionary().keys()
@@ -59,26 +60,6 @@ class TOPdesk:
                 TOPdesk.__assign_user(topdesk_asset)
 
     @staticmethod
-    def __assign_user(topdesk_asset):
-        asset_id    = topdesk_asset.get('data').get('unid')
-        user_id     = topdesk_asset.get('data').get('user-id')
-
-        # remove all currently assigned users, if any
-        linked_persons = TOPdeskAPI.get_asset_assignments(asset_id).get('persons')
-        for person in linked_persons:
-            link_id = person.get('linkId')
-            TOPdeskAPI.remove_asset_assignment_person(asset_id=asset_id,link_id=link_id)
-
-        # if there is a user ID assigned to the intune device
-        if user_id is not None and user_id != '':
-            # fetch the topdesk user that has this userID stored inside its mainframe field
-            topdesk_user_card_id = TOPdeskAPI.get_topdesk_user_id_by_mainframe(user_id)
-
-            # if there is a match, link the user to the id
-            if topdesk_user_card_id is not None:
-                TOPdeskAPI.assign_user(topdesk_user_card_id, asset_id)
-
-    @staticmethod
     def remove_device_assets_except(exceptions):
         # fetch all topdesk assets - their Asset ID and unid only
         topdesk_assets = TOPdesk.__get_topdesk_assets_as_asset_id_and_object_id_dictionary()
@@ -106,6 +87,28 @@ class TOPdesk:
 
             for asset in failed:
                 TOPdeskAPI.archive_asset(asset)
+
+    # Internal ---------------------------------------------------------------------------------------------------------
+
+    @staticmethod
+    def __assign_user(topdesk_asset):
+        asset_id = topdesk_asset.get('data').get('unid')
+        user_id = topdesk_asset.get('data').get('user-id')
+
+        # remove all currently assigned users, if any
+        linked_persons = TOPdeskAPI.get_asset_assignments(asset_id).get('persons')
+        for person in linked_persons:
+            link_id = person.get('linkId')
+            TOPdeskAPI.remove_asset_assignment_person(asset_id=asset_id, link_id=link_id)
+
+        # if there is a user ID assigned to the intune device
+        if user_id is not None and user_id != '':
+            # fetch the topdesk user that has this userID stored inside its mainframe field
+            topdesk_user_card_id = TOPdeskAPI.get_topdesk_user_id_by_mainframe(user_id)
+
+            # if there is a match, link the user to the id
+            if topdesk_user_card_id is not None:
+                TOPdeskAPI.assign_user(topdesk_user_card_id, asset_id)
 
     @staticmethod
     def __filter_out_archived_assets(failed_to_delete_assets):
@@ -179,3 +182,5 @@ class TOPdesk:
             page_start += page_size
 
         return topdesk_assets
+
+    # ------------------------------------------------------------------------------------------------------------------
