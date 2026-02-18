@@ -95,7 +95,7 @@ class TOPdeskAPI:
         print(f"Creating: {asset.to_json()}")
         if 200 <= response.status_code < 300:
             print(f"Response: {response.json()}\n")
-            return
+            return response.json()
         else:
             error_message = f"Error {response.status_code}: {response.text}"
             print(error_message)
@@ -103,10 +103,8 @@ class TOPdeskAPI:
             raise ValueError(error_message)
 
     @staticmethod
-    def update_topdesk_asset(asset_id, template_id, device: IntuneDevice):
-        # response = requests.patch(
+    def update_topdesk_asset(asset_id, device: IntuneDevice):
         response = requests.post(
-            # url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{template_id}/{asset_id}",
             url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{asset_id}",
             auth=(Config.topdesk_username, Config.topdesk_password),
             headers={'Content-Type': 'application/json'},
@@ -119,6 +117,46 @@ class TOPdeskAPI:
             error_message = f"Error {response.status_code}: {response.text}"
             print(error_message)
             print(device.to_json())
+            raise ValueError(error_message)
+
+    def get_topdesk_user_id_by_mainframe(user_id):
+        response = requests.get(
+            url=        f"https://dlfseeds.topdesk.net/tas/api/persons?query=mainframeLoginName=={user_id}",
+            auth=       (Config.topdesk_username, Config.topdesk_password),
+            headers=    {'Content-Type': 'application/json'}
+        )
+
+        if 200 <= response.status_code < 300:
+            if response.text != '':
+                if len(response.json()) == 0:
+                    return None
+                print(f"Found: {response.json()}")
+                person_card = response.json()[0]
+                if person_card.get('status') != 'personArchived':
+                    return person_card.get('id')
+                else:
+                    return None
+        else:
+            error_message = f"Error {response.status_code}: {response.text}"
+            raise ValueError(error_message)
+
+    def assign_user(topdesk_person_card_id, topdesk_asset_id):
+        response = requests.put(
+            url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{topdesk_asset_id}/assignments",
+            auth=(Config.topdesk_username, Config.topdesk_password),
+            headers={
+                'Content-Type': 'application/json'
+            },
+            json={
+                "linkToId": topdesk_person_card_id,
+                "linkType": "person"
+            }
+        )
+
+        if 200 <= response.status_code < 300:
+            return
+        else:
+            error_message = f"Error {response.status_code}: {response.text}"
             raise ValueError(error_message)
 
     def __esc(s: str) -> str:

@@ -16,8 +16,23 @@ class TOPdesk:
 
             # if the IntuneDevice has an Asset ID that is not present in TOPdesk yet, we must create the asset
             if intune_device.topdesk_asset_id not in topdesk_assets_by_name_and_id_dictionary:
-                TOPdeskAPI.create_topdesk_asset(intune_device)
-                current_page_devices.remove(device)  # we've handled it, so it does not need further processing
+                # create and save the response
+                topdesk_asset = TOPdeskAPI.create_topdesk_asset(intune_device)
+
+                # we've handled it, so it does not need to be checked for updates
+                current_page_devices.remove(device)
+
+                # extract the id from the newly crated topdesk asset
+                topdesk_asset_id = topdesk_asset.get('data').get('unid')
+
+                # if there is a user ID assigned to the intune device
+                if intune_device.userId != None and intune_device.userId != '':
+                    # fetch the topdesk user that has this userID stored inside its mainframe field
+                    topdesk_user_card_id = TOPdeskAPI.get_topdesk_user_id_by_mainframe(intune_device.userId)
+
+                    # if there is a match, link the user to the id
+                    if topdesk_user_card_id != None:
+                        TOPdeskAPI.assign_user(topdesk_user_card_id, topdesk_asset_id)
 
     @staticmethod
     def update_topdesk_assets(current_page_devices):

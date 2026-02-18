@@ -23,7 +23,7 @@ class IntuneDevice:
         self.__serialNumber                         = dict.get("serialNumber")
         self.__subscriberCarrier                    = dict.get("subscriberCarrier")
         self.__totalStorageSpaceInBytes             = dict.get("totalStorageSpaceInBytes")
-        self.__userId                               = dict.get("userId")
+        self.userId                                 = dict.get("userId")
 
         self.__device_type                          = OSClassifier.get_device_type(self.__operatingSystem)
         self.topdesk_asset_id                       = f"{self.__device_type.value}-{self.__azureADDeviceId}"
@@ -53,7 +53,7 @@ class IntuneDevice:
             "serial-number":                            self.__serialNumber,
             "subscriber-carrier":                       self.__subscriberCarrier,
             "total-storage":                            IntuneDevice.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes),
-            "user-id":                                  self.__userId
+            "user-id":                                  self.userId
 
             # "last-ip-address": getattr(self, "last_ip_address", None),
             # "exposure-level": getattr(self, "exposure_level", None),
@@ -130,7 +130,7 @@ class IntuneDevice:
                     IntuneDevice.__bytes_to_gb(self.__totalStorageSpaceInBytes), target.get("total-storage")
                 ) and
                 IntuneDevice.__areEqual(
-                    self.__userId, target.get("user-id")
+                    self.userId, target.get("user-id")
                 )
         )
 
