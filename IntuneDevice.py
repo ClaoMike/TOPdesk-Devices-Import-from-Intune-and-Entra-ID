@@ -1,4 +1,5 @@
 from OSClassifier import OSClassifier
+from datetime import datetime, timezone
 
 class IntuneDevice:
     def __init__(self, dict):
@@ -37,7 +38,7 @@ class IntuneDevice:
             "compliance-status":                        self.__complianceState,
             "name-1":                                   self.__deviceName,
             "enrollment-date":                          self.__enrolledDateTime,
-            "free-storage":                             f"{IntuneDevice.__bytes_to_gb(bytes_value=self.__freeStorageSpaceInBytes)} GB",
+            "free-storage":                             IntuneDevice.__bytes_to_gb(bytes_value=self.__freeStorageSpaceInBytes),
             "intune-id":                                self.__id,
             "encrypted":                                self.__isEncrypted,
             "imei":                                     self.__imei,
@@ -51,7 +52,7 @@ class IntuneDevice:
             "os-version":                               self.__osVersion,
             "serial-number":                            self.__serialNumber,
             "subscriber-carrier":                       self.__subscriberCarrier,
-            "total-storage":                            f"{IntuneDevice.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes)} GB",
+            "total-storage":                            IntuneDevice.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes),
             "user-id":                                  self.__userId
 
             # "last-ip-address": getattr(self, "last_ip_address", None),
@@ -68,91 +69,69 @@ class IntuneDevice:
         }
 
     def requiresUpdate(self, target: dict) -> bool:
-        # if self.__azureADDeviceId                       != target.get("azure-id"):
-        #     return False
-        #
-        # if self.__azureADRegistered                     != target.get("azure-ad-registered"):
-        #     return False
-        #
-        # if self.__complianceState                       != target.get("compliance-status"):
-        #     return False
-        #
-        # if self.__deviceName                            != target.get("name-1"):
-        #     return False
-        #
-        # if self.__enrolledDateTime                      != target.get("enrollment-date"):
-        #     return False
-        #
-        # if self.__freeStorageSpaceInBytes               != target.get("free-storage"):
-        #     return False
-        #
-        # if self.__id                                    != target.get("intune-id"):
-        #     return False
-        #
-        # if self.__isEncrypted                           != target.get("encrypted"):
-        #     return False
-        #
-        # if self.__imei                                  != target.get("imei"):
-        #     return False
-        #
-        # if self.__isSupervised                          != target.get("ismanaged"):
-        #     return False
-        #
-        # if self.__lastSyncDateTime                      != target.get("last-check-in"):
-        #     return False
-        #
-        # if self.__managedDeviceOwnerType                != target.get("ownership"):
-        #     return False
-        #
-        # if self.__managementCertificateExpirationDate   != target.get("management-certificate-expiration-date"):
-        #     return False
-        #
-        # if self.__manufacturer                          != target.get("manufacturer-1"):
-        #     return False
-        #
-        # if self.__model                                 != target.get("model-1"):
-        #     return False
-        #
-        # if self.__operatingSystem                       != target.get("operating-system"):
-        #     return False
-        #
-        # if self.__osVersion                             != target.get("os-version"):
-        #     return False
-        #
-        # if self.__serialNumber                          != target.get("serial-number"):
-        #     return False
-        #
-        # if self.__subscriberCarrier                     != target.get("subscriber-carrier"):
-        #     return False
-        #
-        # if self.__totalStorageSpaceInBytes              != target.get("total-storage"):
-        #     return False
-        #
-        # if self.__userId                                != target.get("user-id"):
-        #     return False
-
         return not (
-                IntuneDevice.__areEqual(self.__azureADDeviceId, target.get("azure-id")) and
-                IntuneDevice.__areEqual(self.__azureADRegistered, target.get("azure-ad-registered")) and
-                IntuneDevice.__areEqual(self.__complianceState, target.get("compliance-status")) and
-                IntuneDevice.__areEqual(self.__deviceName, target.get("name-1")) and
-                IntuneDevice.__areEqual(self.__enrolledDateTime, target.get("enrollment-date")) and
-                IntuneDevice.__areEqual(self.__freeStorageSpaceInBytes, target.get("free-storage")) and
-                IntuneDevice.__areEqual(self.__id, target.get("intune-id")) and
-                IntuneDevice.__areEqual(self.__isEncrypted, target.get("encrypted")) and
-                IntuneDevice.__areEqual(self.__imei, target.get("imei")) and
-                IntuneDevice.__areEqual(self.__isSupervised, target.get("ismanaged")) and
-                IntuneDevice.__areEqual(self.__lastSyncDateTime, target.get("last-check-in")) and
-                IntuneDevice.__areEqual(self.__managedDeviceOwnerType, target.get("ownership")) and
-                IntuneDevice.__areEqual(self.__managementCertificateExpirationDate, target.get("management-certificate-expiration-date")) and
-                IntuneDevice.__areEqual(self.__manufacturer, target.get("manufacturer-1")) and
-                IntuneDevice.__areEqual(self.__model, target.get("model-1")) and
-                IntuneDevice.__areEqual(self.__operatingSystem, target.get("operating-system")) and
-                IntuneDevice.__areEqual(self.__osVersion, target.get("os-version")) and
-                IntuneDevice.__areEqual(self.__serialNumber, target.get("serial-number")) and
-                IntuneDevice.__areEqual(self.__subscriberCarrier, target.get("subscriber-carrier")) and
-                IntuneDevice.__areEqual(self.__totalStorageSpaceInBytes, target.get("total-storage")) and
-                IntuneDevice.__areEqual(self.__userId, target.get("user-id"))
+                IntuneDevice.__areEqual(
+                    self.__azureADDeviceId, target.get("azure-id")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__azureADRegistered, target.get("azure-ad-registered")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__complianceState, target.get("compliance-status")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__deviceName, target.get("name-1")
+                ) and
+                IntuneDevice.__areEqual(
+                    IntuneDevice.__normalize_date(self.__enrolledDateTime) , IntuneDevice.__normalize_date(target.get("enrollment-date"))
+                ) and
+                IntuneDevice.__areEqual(
+                    IntuneDevice.__bytes_to_gb(self.__freeStorageSpaceInBytes), target.get("free-storage")) and
+                IntuneDevice.__areEqual(
+                    self.__id, target.get("intune-id")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__isEncrypted, target.get("encrypted")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__imei, target.get("imei")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__isSupervised, target.get("ismanaged")
+                ) and
+                IntuneDevice.__areEqual(
+                    IntuneDevice.__normalize_date(self.__lastSyncDateTime), IntuneDevice.__normalize_date(target.get("last-check-in"))
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__managedDeviceOwnerType, target.get("ownership")
+                ) and
+                IntuneDevice.__areEqual(
+                    IntuneDevice.__normalize_date(self.__managementCertificateExpirationDate), IntuneDevice.__normalize_date(target.get("management-certificate-expiration-date"))
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__manufacturer, target.get("manufacturer-1")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__model, target.get("model-1")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__operatingSystem, target.get("operating-system")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__osVersion, target.get("os-version")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__serialNumber, target.get("serial-number")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__subscriberCarrier, target.get("subscriber-carrier")
+                ) and
+                IntuneDevice.__areEqual(
+                    IntuneDevice.__bytes_to_gb(self.__totalStorageSpaceInBytes), target.get("total-storage")
+                ) and
+                IntuneDevice.__areEqual(
+                    self.__userId, target.get("user-id")
+                )
         )
 
         # 'unid': 'e032024f-d1aa-41f2-99d2-f779b1201de5'
@@ -174,8 +153,20 @@ class IntuneDevice:
     def get_fields():
         return ",".join(IntuneDevice({}).to_json().keys())
 
-    def __bytes_to_gb(bytes_value: int, decimals: int = 0) -> float:
+    def __bytes_to_gb(bytes_value: int, decimals: int = 0) -> str:
         """Convert bytes to decimal gigabytes (GB)."""
         if bytes_value is None:
-            return 0.0
-        return round(bytes_value / 1_000_000_000, decimals)
+            return "0.0 GB"
+        return f"{round(bytes_value / 1_000_000_000, decimals)} GB"
+
+    def __normalize_date(ts: str) -> datetime:
+        ts = ts.strip()
+
+        # Handle "Z" (UTC) from Intune
+        if ts.endswith("Z"):
+            return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+        # Handle TOPdesk format without timezone
+        dt = datetime.fromisoformat(ts)
+
+        return dt.replace(tzinfo=timezone.utc)
