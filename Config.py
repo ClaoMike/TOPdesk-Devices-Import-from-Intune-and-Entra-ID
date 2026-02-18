@@ -1,5 +1,4 @@
-from dotenv import load_dotenv
-import os
+import automationassets
 
 class Config:
     tenant_id = None
@@ -17,17 +16,16 @@ class Config:
 
     @staticmethod
     def load():
-        load_dotenv(override=True)
+        cred = automationassets.get_automation_credential("CREDENTIAL_TOPDESK_API")
+        Config.topdesk_username = cred["username"]
+        Config.topdesk_password = cred["password"]
 
-        Config.tenant_id = os.getenv("TENANT_ID")
-        Config.client_id = os.getenv("CLIENT_ID")
-        Config.client_secret = os.getenv("CLIENT_SECRET")
+        Config.topdesk_computer_category_id =   automationassets.get_automation_variable("TOPDESK_COMPUTER_CATEGORY_ID")
+        Config.topdesk_mobile_category_id =     automationassets.get_automation_variable("TOPDESK_MOBILE_CATEGORY_ID")
+        Config.topdesk_device_category_id =     automationassets.get_automation_variable("TOPDESK_DEVICE_CATEGORY_ID")
 
-        Config.topdesk_username = os.getenv("TOPDESK_USERNAME")
-        Config.topdesk_password = os.getenv("TOPDESK_PASSWORD")
+        Config.tenant_id =                      automationassets.get_automation_variable("INTUNE_TENANT_ID")
+        Config.client_id =                      automationassets.get_automation_variable("INTUNE_CLIENT_ID")
+        Config.client_secret =                  automationassets.get_automation_variable("INTUNE_CLIENT_SECRET")
 
-        Config.topdesk_computer_category_id = os.getenv("TOPDESK_COMPUTER_CATEGORY_ID")
-        Config.topdesk_mobile_category_id = os.getenv("TOPDESK_MOBILE_CATEGORY_ID")
-        Config.topdesk_device_category_id = os.getenv("TOPDESK_DEVICE_CATEGORY_ID")
-
-        Config.lenovo_client_id = os.getenv("LENOVO_CLIENT_ID")
+        Config.lenovo_client_id =               automationassets.get_automation_variable("LENOVO_CLIENT_ID")
