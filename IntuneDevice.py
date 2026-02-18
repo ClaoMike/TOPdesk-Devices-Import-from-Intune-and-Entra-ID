@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 class IntuneDevice:
     def __init__(self, dict):
         self.__azureADDeviceId                      = dict.get("azureADDeviceId")
-        self.__azureADRegistered                    = dict.get("azureADRegistered")
+        azureADRegistered = dict.get("azureADRegistered")
+        self.__azureADRegistered                    = False if azureADRegistered is None else azureADRegistered
         self.__complianceState                      = dict.get("complianceState")
         self.__deviceName                           = dict.get("deviceName")
         self.__enrolledDateTime                     = dict.get("enrolledDateTime")
@@ -134,32 +135,26 @@ class IntuneDevice:
                 )
         )
 
-        # 'unid': 'e032024f-d1aa-41f2-99d2-f779b1201de5'
-        # '@@summary': ''
-        # '@statusLocked': False
-        # 'archived': False
-        # '@etag': '2026-02-17T11:49:34.234         '
-        # 'type_id': '5F0A918A-1802-412B-A86D-CD4634AE6444'
-        # '@status': 'OPERATIONAL'
-        # 'modificationDate': '2026-02-17T11:49:34.234'
-
-    @staticmethod
-    def __areEqual(a, b) -> bool:
-        if a!=b:
-            print("Comparing Intune vs. TOPdesk values")
-            print(f"Comparing {a} vs. {b}\n")
-        return a==b
-
     @staticmethod
     def get_fields():
         return ",".join(IntuneDevice({}).to_json().keys())
 
+    # Internal ---------------------------------------------------------------------------------------------------------
+    @staticmethod
+    def __areEqual(a, b) -> bool:
+        if a != b:
+            print("Comparing Intune vs. TOPdesk values")
+            print(f"Comparing {a} vs. {b}\n")
+        return a == b
+
+    @staticmethod
     def __bytes_to_gb(bytes_value: int, decimals: int = 0) -> str:
         """Convert bytes to decimal gigabytes (GB)."""
         if bytes_value is None:
             return "0.0 GB"
         return f"{round(bytes_value / 1_000_000_000, decimals)} GB"
 
+    @staticmethod
     def __normalize_date(ts: str) -> datetime:
         ts = ts.strip()
 
@@ -171,3 +166,5 @@ class IntuneDevice:
         dt = datetime.fromisoformat(ts)
 
         return dt.replace(tzinfo=timezone.utc)
+
+    # ------------------------------------------------------------------------------------------------------------------

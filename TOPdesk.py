@@ -46,6 +46,9 @@ class TOPdesk:
 
             if intune_device.requiresUpdate(topdesk_asset):
                 print(f'Asset {asset_ID} requires an update!')
+                print()
+                print(intune_device.to_json())
+                print(topdesk_asset)
                 # first, unarchive it if it is archived
                 if topdesk_asset.get('archived'):
                     TOPdeskAPI.unarchive_asset(topdesk_asset.get('unid'))
