@@ -18,6 +18,7 @@ class TOPdesk:
             if intune_device.topdesk_asset_id not in topdesk_assets_by_name_and_id_dictionary:
                 # create and save the response
                 topdesk_asset = TOPdeskAPI.create_topdesk_asset(intune_device)
+                # assign the user to it, if any
                 TOPdesk.__assign_user(topdesk_asset)
 
                 # we've handled it, so it does not need to be checked for updates
@@ -48,6 +49,7 @@ class TOPdesk:
                     asset_id=topdesk_asset.get('unid'),
                     device=intune_device
                 )
+                # assign the user to it, if any
                 TOPdesk.__assign_user(topdesk_asset)
 
     @staticmethod
@@ -55,6 +57,7 @@ class TOPdesk:
         asset_id    = topdesk_asset.get('data').get('unid')
         user_id     = topdesk_asset.get('data').get('user-id')
 
+        # remove all currently assigned users, if any
         linked_persons = TOPdeskAPI.get_asset_assignments(asset_id).get('persons')
         for person in linked_persons:
             link_id = person.get('linkId')

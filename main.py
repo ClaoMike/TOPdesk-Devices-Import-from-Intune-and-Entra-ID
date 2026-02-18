@@ -4,7 +4,6 @@ from TOPdesk import TOPdesk
 from Settings import Settings
 from IntuneDevice import IntuneDevice
 
-# TODO: we need to link their users as well
 # TODO: we need to fetch the Lenovo data
 # TODO: we need to fetch the Microsoft Defender data
 # TODO: we need to integrate the Azure Entra ID devices as well
