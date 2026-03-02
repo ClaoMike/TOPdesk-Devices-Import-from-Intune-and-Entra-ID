@@ -1,5 +1,5 @@
-from TOPdeskAPI import TOPdeskAPI
-from IntuneDevice import IntuneDevice
+from api.TOPdeskAPI import TOPdeskAPI
+from devices.IntuneDevice import IntuneDevice
 
 class TOPdesk:
     # Public -----------------------------------------------------------------------------------------------------------

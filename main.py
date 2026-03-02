@@ -1,11 +1,10 @@
-from Config import Config
-from ApiService import ApiService
+from system.Config import Config
+from api.ApiService import ApiService
 from TOPdesk import TOPdesk
-from Settings import Settings
-from IntuneDevice import IntuneDevice
+from system.Settings import Settings
+from devices.IntuneDevice import IntuneDevice
 
 # TODO #################################################################################################################
-# TODO 1. Organize code - folders ######################################################################################
 # TODO 2. Fetch Lenovo data ############################################################################################
 # TODO 3. Fetch Microsoft Defender data ################################################################################
 # TODO 4. Put sensible prints and remove the extra long ones - required for errors only ################################

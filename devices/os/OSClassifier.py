@@ -1,5 +1,5 @@
-from OSType import OSType
-from Config import Config
+from devices.os.OSType import OSType
+from system.Config import Config
 
 class OSClassifier:
     __computer_os = {

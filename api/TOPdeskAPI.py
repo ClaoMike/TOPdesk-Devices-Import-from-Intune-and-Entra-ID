@@ -1,6 +1,6 @@
-from Config import Config
+from system.Config import Config
 import requests
-from IntuneDevice import IntuneDevice
+from devices.IntuneDevice import IntuneDevice
 
 class TOPdeskAPI:
 

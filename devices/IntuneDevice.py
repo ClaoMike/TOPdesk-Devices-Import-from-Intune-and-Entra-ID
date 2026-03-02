@@ -1,4 +1,4 @@
-from OSClassifier import OSClassifier
+from devices.os.OSClassifier import OSClassifier
 from datetime import datetime, timezone
 
 class IntuneDevice:

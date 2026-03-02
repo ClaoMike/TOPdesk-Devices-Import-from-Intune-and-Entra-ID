@@ -1,4 +1,4 @@
-import automationassets
+from system import automationassets
 
 class Config:
     tenant_id = None

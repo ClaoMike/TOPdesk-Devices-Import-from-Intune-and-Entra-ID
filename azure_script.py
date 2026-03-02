@@ -1,7 +1,8 @@
 import requests
 from datetime import datetime, timezone
 from enum import Enum
-import automationassets
+from system import automationassets
+
 
 ########################################################################################################################
 

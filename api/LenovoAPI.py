@@ -1,4 +1,4 @@
-from Config import Config
+from system.Config import Config
 import requests
 
 class LenovoAPI:
