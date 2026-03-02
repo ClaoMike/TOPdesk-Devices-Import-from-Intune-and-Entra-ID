@@ -1,29 +1,52 @@
 from api.TOPdeskAPI import TOPdeskAPI
 from devices.IntuneDevice import IntuneDevice
+from api.LenovoAPI import LenovoAPI
 
 class TOPdesk:
     # Public -----------------------------------------------------------------------------------------------------------
     @staticmethod
     def create_topdesk_assets(current_page_devices):
+        # get all ids of active devices from TOPdesk
         topdesk_assets_by_name_and_id_dictionary = TOPdesk.__get_topdesk_assets_as_asset_id_and_object_id_dictionary().keys()
 
         # create a copy, do not remove items while iterating the array
         current_page_devices_copy = current_page_devices.copy()
+
+        intune_devices_by_serial_number_dictionary = dict()
+        intune_devices_to_be_created = []
 
         # for each device in the current page, create an IntuneDevice object
         # it automatically generates what would be the TOPdesk Asset ID
         for device in current_page_devices_copy:
             intune_device = IntuneDevice(device)
 
-            # if the IntuneDevice has an Asset ID that is not present in TOPdesk yet, we must create the asset
+            # if the IntuneDevice has an Asset ID that is not present in TOPdesk yet
             if intune_device.topdesk_asset_id not in topdesk_assets_by_name_and_id_dictionary:
-                # create and save the response
-                topdesk_asset = TOPdeskAPI.create_topdesk_asset(intune_device)
-                # assign the user to it, if any
-                TOPdesk.__assign_user(topdesk_asset)
+                # we add it to the list of devices that need to be created
+                intune_devices_to_be_created.append(intune_device)
+                # we also save it by its serial number
+                intune_devices_by_serial_number_dictionary[intune_device.serialNumber] = intune_device
 
                 # we've handled it, so it does not need to be checked for updates
                 current_page_devices.remove(device)
+
+        # if there are devices that have a serial number,
+        if len(intune_devices_to_be_created) > 0:
+            # generate the list of serial numbers as "Serial=...&Serial=..."
+            params = "Serial=" + "&Serial=".join(intune_devices_by_serial_number_dictionary.keys())
+            # fetch Lenovo warranties and stuff
+            warranties = LenovoAPI.get_lenovo_warranties(params)
+
+            # attach the warranties
+            for warranty in warranties:
+                intune_devices_by_serial_number_dictionary[warranty.get('Serial')].add_warranty(warranty)
+
+        # for each intune device that needs to be created
+        for intune_device in intune_devices_to_be_created:
+            # create it and save the response - linking to an user requires the new asset ID
+            topdesk_asset = TOPdeskAPI.create_topdesk_asset(intune_device)
+            # assign the user to it, if any
+            TOPdesk.__assign_user(topdesk_asset)
 
     @staticmethod
     def update_topdesk_assets(current_page_devices):
@@ -115,9 +138,18 @@ class TOPdesk:
 
     @staticmethod
     def __filter_out_archived_assets(failed_to_delete_assets):
-        archived_topdesk_assets = TOPdesk.__get_topdesk_assets_archived_field_only(failed_to_delete_assets)
-        for asset in archived_topdesk_assets:
-            failed_to_delete_assets.remove(asset)
+        archived = TOPdesk.__get_topdesk_assets_archived_field_only(failed_to_delete_assets)
+
+        failed_set = set(failed_to_delete_assets)
+        archived_set = set(archived)
+
+        # Debug: IDs returned as archived that were NOT in failed
+        extra = archived_set - failed_set
+        if extra:
+            print("WARNING: archived returned IDs not in failed (filter ignored?):", list(extra)[:10])
+
+        # Keep only those that are NOT archived
+        failed_to_delete_assets[:] = [x for x in failed_to_delete_assets if x not in archived_set]
 
     @staticmethod
     def __get_topdesk_assets_archived_field_only(ids):

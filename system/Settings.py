@@ -1,3 +1,3 @@
 class Settings:
     FETCH_JUST_ONE_PAGE_OF_INTUNE_DEVICES = False
-    INTUNE_DEVICES_PER_FETCHED_PAGE = 500
+    INTUNE_DEVICES_PER_FETCHED_PAGE = 100 # should be 1000 for lenovo compliance
