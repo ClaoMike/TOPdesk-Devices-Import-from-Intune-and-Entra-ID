@@ -90,7 +90,6 @@ class TOPdeskAPI:
             if response.text != '':
                 if len(response.json()) == 0:
                     return None
-                print(f"Found: {response.json()}")
                 person_card = response.json()[0]
                 if person_card.get('status') != 'personArchived':
                     return person_card.get('id')

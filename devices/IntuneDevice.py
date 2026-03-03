@@ -142,6 +142,31 @@ class IntuneDevice:
                 IntuneDevice.__areEqual(
                     self.userId, target.get("user-id")
                 )
+                # here comes Lenovo
+                and
+                IntuneDevice.__areEqual(
+                    self.is_in_warranty, target.get("is-in-warranty")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.country, target.get("country-warranty")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.product_name, target.get("model-provided-by-the-manufacturer")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.warranty_expiration_date, target.get("warranty-expiration-date")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.number_of_days_left_until_the_warranty_expires, target.get("number-of-days-until-the-warranty-expires")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.lenovo_product_webpage_url, target.get("warranty-url")
+                )
         )
 
     def add_warranty(self, warranty):

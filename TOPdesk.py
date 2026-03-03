@@ -29,6 +29,9 @@ class TOPdesk:
 
         TOPdesk.__get_Lenovo_warranties(intune_devices_to_be_created)
 
+        if len(intune_devices_to_be_created) > 0:
+            print(f"Creating {len(intune_devices_to_be_created)} assets: {[asset.topdesk_asset_id for asset in intune_devices_to_be_created]}")
+
         # for each intune device that needs to be created
         for intune_device in intune_devices_to_be_created:
             # create it and save the response - linking to an user requires the new asset ID
@@ -37,53 +40,31 @@ class TOPdesk:
             TOPdesk.__assign_user(topdesk_asset)
 
     @staticmethod
-    def __get_Lenovo_warranties(intune_devices):
-        if len(intune_devices) == 0:
-            return
-
-        intune_devices_by_serial_number_dictionary = dict()
-
-        for device in intune_devices:
-            # quick access for each device via its serial number
-            intune_devices_by_serial_number_dictionary[device.serialNumber] = device
-
-        # generate the list of serial numbers as "Serial=...&Serial=..."
-        params = "Serial=" + "&Serial=".join(intune_devices_by_serial_number_dictionary.keys())
-        # fetch Lenovo warranties and stuff
-        warranties = LenovoAPI.get_lenovo_warranties(params)
-
-        print(warranties)
-
-        # attach the warranties
-        for warranty in warranties:
-            serial_number = warranty.get('Serial')
-            intune_device = intune_devices_by_serial_number_dictionary[serial_number]
-            intune_device.add_warranty(warranty)
-
-    @staticmethod
     def update_topdesk_assets(current_page_devices):
-        intune_devices = {}
-        # crate the IntuneDevice instance for each fetched Intune device and add it to a dictionary, where
-        # the key is its topdesk asset ID and the value is the object itself
+        intune_devices = []
+        # create the IntuneDevice instance for each fetched Intune device
         for device in current_page_devices:
-            intune_device = IntuneDevice(device)
-            intune_devices[intune_device.topdesk_asset_id] = intune_device
+            intune_devices.append(IntuneDevice(device))
+
+        # fetch Lenovo data
+        TOPdesk.__get_Lenovo_warranties(intune_devices)
+
+        # create a quick access dictionary for intune devices via their topdesk asset id
+        intune_devices_by_topdesk_asset_id = {
+            device.topdesk_asset_id: device for device in intune_devices
+        }
 
         # get the topdesk assets for each of the above Intune device
-        devices_as_topdesk_assets = TOPdesk.__get_topdesk_assets(intune_devices.keys())
+        devices_as_topdesk_assets = TOPdesk.__get_topdesk_assets(intune_devices_by_topdesk_asset_id.keys())
 
         # compare the fetched Intune device data with the TOPdesk value
         # if they match, do not update
         # otherwise, send update to TOPdesk
         for asset_ID in devices_as_topdesk_assets.keys():
-            intune_device = intune_devices.get(asset_ID)
+            intune_device = intune_devices_by_topdesk_asset_id.get(asset_ID)
             topdesk_asset = devices_as_topdesk_assets.get(asset_ID)
 
             if intune_device.requiresUpdate(topdesk_asset):
-                print(f'Asset {asset_ID} requires an update!')
-                print()
-                print(intune_device.to_json())
-                print(topdesk_asset)
                 # first, unarchive it if it is archived
                 if topdesk_asset.get('archived'):
                     TOPdeskAPI.unarchive_asset(topdesk_asset.get('unid'))
@@ -127,6 +108,34 @@ class TOPdesk:
                 TOPdeskAPI.archive_asset(asset)
 
     # Internal ---------------------------------------------------------------------------------------------------------
+    @staticmethod
+    def __get_Lenovo_warranties(intune_devices):
+        if len(intune_devices) == 0:
+            return
+
+        intune_devices_by_serial_number_dictionary = dict()
+
+        for device in intune_devices:
+            # quick access for each device via its serial number
+            intune_devices_by_serial_number_dictionary[device.serialNumber] = device
+
+        # generate the list of serial numbers as "Serial=...&Serial=..."
+        params = "Serial=" + "&Serial=".join(intune_devices_by_serial_number_dictionary.keys())
+        # fetch Lenovo warranties and stuff
+        warranties = LenovoAPI.get_lenovo_warranties(params)
+        print(warranties)
+
+        # attach the warranties
+        for warranty in warranties:
+            serial_number = warranty.get('Serial')
+            intune_device = intune_devices_by_serial_number_dictionary[serial_number]
+
+            error_message = warranty.get('ErrorMessage')
+            if error_message is not None and error_message != "":
+                print(f"Device with TOPdesk asset ID: {intune_device.topdesk_asset_id} and serial number: {serial_number} cannot be found in Lenovo warranty database: {error_message}!")
+                continue
+
+            intune_device.add_warranty(warranty)
 
     @staticmethod
     def __assign_user(topdesk_asset):
