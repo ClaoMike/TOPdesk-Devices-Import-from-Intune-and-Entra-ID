@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 class IntuneDevice:
     def __init__(self, dict):
         # Intune data
-        self.__azureADDeviceId                      = dict.get("azureADDeviceId")
+        self.azureADDeviceId                      = dict.get("azureADDeviceId")
         azureADRegistered = dict.get("azureADRegistered")
         self.__azureADRegistered                    = False if azureADRegistered is None else azureADRegistered
         self.__complianceState                      = dict.get("complianceState")
@@ -36,16 +36,21 @@ class IntuneDevice:
         self.warranty_expiration_date = None
         self.number_of_days_left_until_the_warranty_expires = None
 
+        # Microsoft Defender values
+        self.__last_ip_address = None
+        self.__exposure_level = None
+        self.__last_external_ip_address = None
+
         # TOPdesk data (computed, not fetched)
         self.__device_type                          = OSClassifier.get_device_type(self.__operatingSystem)
-        self.topdesk_asset_id                       = f"{self.__device_type.value}-{self.__azureADDeviceId}"
+        self.topdesk_asset_id                       = f"{self.__device_type.value}-{self.azureADDeviceId}"
 
     def to_json(self):
         return {
             "name":                                     self.topdesk_asset_id,
             "type_id":                                  OSClassifier.get_device_template(self.__device_type),
 
-            "azure-id":                                 self.__azureADDeviceId,
+            "azure-id":                                 self.azureADDeviceId,
             "azure-ad-registered":                      self.__azureADRegistered,
             "compliance-status":                        self.__complianceState,
             "name-1":                                   self.__deviceName,
@@ -71,17 +76,20 @@ class IntuneDevice:
             "is-in-warranty": self.is_in_warranty,
             "country-warranty": self.country,
             "model-provided-by-the-manufacturer": self.product_name,
-            # "warranty-expiration-date": self.warranty_expiration_date.strftime(
-                # "%Y-%m-%dT%H:%M:%S.000Z") if self.warranty_expiration_date else None,
             "warranty-expiration-date": self.warranty_expiration_date,
             "number-of-days-until-the-warranty-expires": self.number_of_days_left_until_the_warranty_expires,
             "warranty-url": self.lenovo_product_webpage_url,
+
+            # Microsoft Defender data
+            "exposure-level": self.__exposure_level,
+            "last-ip-address": self.__last_ip_address,
+            "last-external-ip-address": self.__last_external_ip_address
         }
 
     def requiresUpdate(self, target: dict) -> bool:
         return not (
                 IntuneDevice.__areEqual(
-                    self.__azureADDeviceId, target.get("azure-id")
+                    self.azureADDeviceId, target.get("azure-id")
                 ) and
                 IntuneDevice.__areEqual(
                     self.__azureADRegistered, target.get("azure-ad-registered")
@@ -167,6 +175,19 @@ class IntuneDevice:
                 IntuneDevice.__areEqual(
                     self.lenovo_product_webpage_url, target.get("warranty-url")
                 )
+                # here comes Microsoft Defender
+                and
+                IntuneDevice.__areEqual(
+                    self.__exposure_level, target.get("exposure-level")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.__last_ip_address, target.get("last-ip-address")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.__last_external_ip_address, target.get("last-external-ip-address")
+                )
         )
 
     def add_warranty(self, warranty):
@@ -199,6 +220,13 @@ class IntuneDevice:
         self.number_of_days_left_until_the_warranty_expires = (self.warranty_expiration_date - current_date).days + 1 if bool(self.is_in_warranty) else 0
 
         self.warranty_expiration_date = self.warranty_expiration_date.isoformat() if self.warranty_expiration_date is not None else None
+
+    def add_microsoft_defender_data(self, data):
+        self.__operatingSystem          = data.get("osPlatform")
+        self.__osVersion                = data.get("version")
+        self.__exposure_level           = data.get("exposureLevel")
+        self.__last_ip_address          = data.get("lastIpAddress")
+        self.__last_external_ip_address = data.get("lastExternalIpAddress")
 
     @staticmethod
     def get_fields():

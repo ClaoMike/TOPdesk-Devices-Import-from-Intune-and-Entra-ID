@@ -1,7 +1,8 @@
 import requests
 from datetime import datetime, timezone
 from enum import Enum
-from system import automationassets
+from system import automationassets # dev
+# import automationassets # prod
 
 ########################################################################################################################
 
@@ -154,9 +155,6 @@ class OSClassifier:
             return Config.topdesk_device_category_id
 
 ########################################################################################################################
-
-from devices.os.OSClassifier import OSClassifier
-from datetime import datetime, timezone
 
 class IntuneDevice:
     def __init__(self, dict):

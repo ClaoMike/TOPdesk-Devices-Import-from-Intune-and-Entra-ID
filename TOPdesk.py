@@ -1,8 +1,11 @@
+from api.MicrosoftDefenderAPI import MicrosoftDefenderAPI
 from api.TOPdeskAPI import TOPdeskAPI
 from devices.IntuneDevice import IntuneDevice
 from api.LenovoAPI import LenovoAPI
 
 class TOPdesk:
+    __microsoft_defender_devices = None
+
     # Public -----------------------------------------------------------------------------------------------------------
     @staticmethod
     def create_topdesk_assets(current_page_devices):
@@ -28,6 +31,7 @@ class TOPdesk:
                 current_page_devices.remove(device)
 
         TOPdesk.__get_Lenovo_warranties(intune_devices_to_be_created)
+        TOPdesk.__attach_Microsoft_Defender_data(intune_devices_to_be_created)
 
         if len(intune_devices_to_be_created) > 0:
             print(f"Creating {len(intune_devices_to_be_created)} assets: {[asset.topdesk_asset_id for asset in intune_devices_to_be_created]}")
@@ -48,6 +52,7 @@ class TOPdesk:
 
         # fetch Lenovo data
         TOPdesk.__get_Lenovo_warranties(intune_devices)
+        TOPdesk.__attach_Microsoft_Defender_data(intune_devices)
 
         # create a quick access dictionary for intune devices via their topdesk asset id
         intune_devices_by_topdesk_asset_id = {
@@ -108,6 +113,25 @@ class TOPdesk:
                 TOPdeskAPI.archive_asset(asset)
 
     # Internal ---------------------------------------------------------------------------------------------------------
+
+    @staticmethod
+    def get_Microsoft_Defender_devices():
+        MicrosoftDefenderAPI.get_access_token()
+        TOPdesk.__microsoft_defender_devices = dict()
+
+        for device in MicrosoftDefenderAPI.get_devices():
+            TOPdesk.__microsoft_defender_devices[device.get("azureADDeviceId")] = device
+
+    @staticmethod
+    def __attach_Microsoft_Defender_data(intune_devices):
+        if len(intune_devices) == 0:
+            return
+
+        for device in intune_devices:
+            data = TOPdesk.__microsoft_defender_devices.get(device.azureADDeviceId)
+            if data is not None:
+                device.add_microsoft_defender_data(data)
+
     @staticmethod
     def __get_Lenovo_warranties(intune_devices):
         if len(intune_devices) == 0:
