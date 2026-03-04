@@ -21,10 +21,6 @@ Config.load()
 print("Fetching Microsoft Defender Devices")
 TOPdesk.get_Microsoft_Defender_devices()
 
-print("Fetching Intune Devices")
-__intune_url = f"https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$top={Settings.INTUNE_DEVICES_PER_FETCHED_PAGE}"
-next_page = __intune_url
-
 # fetch the Microsoft Graph API access token - not valid forever
 IntuneAPI.get_access_token()
 
@@ -38,8 +34,14 @@ page_counter = 1
 while next_page:
     # fetch a page of intune devices, and the url for the next page
     current_page_devices, next_page = IntuneAPI.get_devices_from_page(next_page)
+
+    # Development Control ----------------------------------------------------------------------------------------------
     print("Page: ", page_counter)
+    if not Settings.FETCH_All_INTUNE_DEVICES:
+        if Settings.NUMBER_OF_INTUNE_DEVICES_PAGES_ALLOWED_FOR_FETCHING == page_counter:
+            next_page = None
     page_counter += 1
+    # ----------------------------------------------------------------------------------------------
 
     # compute and store the topdesk Asset ID of the Intune devices
     for device in current_page_devices:
@@ -54,10 +56,6 @@ while next_page:
     print(
         f"Check the following {len(current_page_devices)} devices for any updates: {[device.get('id') for device in current_page_devices]}")
     TOPdesk.update_topdesk_assets(current_page_devices)
-
-    ### Load just one page of Intune devices when in development
-    if Settings.FETCH_JUST_ONE_PAGE_OF_INTUNE_DEVICES:
-        next_page = None
 
 # delete assets in TOPdesk that are not in Intune anymore
 if Settings.DELETE_OUTDATED_TOPDESK_ASSETS:
