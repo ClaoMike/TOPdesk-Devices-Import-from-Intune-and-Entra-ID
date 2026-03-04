@@ -4,7 +4,7 @@ from devices.IntuneDevice import IntuneDevice
 from api.LenovoAPI import LenovoAPI
 
 class TOPdesk:
-    __microsoft_defender_devices = None
+    __microsoft_defender_devices = dict()
 
     # Public -----------------------------------------------------------------------------------------------------------
     @staticmethod
@@ -118,10 +118,12 @@ class TOPdesk:
     @staticmethod
     def get_Microsoft_Defender_devices():
         MicrosoftDefenderAPI.get_access_token()
-        TOPdesk.__microsoft_defender_devices = dict()
+        microsoft_defender_devices = MicrosoftDefenderAPI.get_devices()
 
-        for device in MicrosoftDefenderAPI.get_devices():
-            TOPdesk.__microsoft_defender_devices[device.get("azureADDeviceId")] = device
+        for device in microsoft_defender_devices:
+            device_id = device.get("aadDeviceId")
+            if device_id is not None:
+                TOPdesk.__microsoft_defender_devices[device_id] = device
 
     @staticmethod
     def __attach_Microsoft_Defender_data(intune_devices):
