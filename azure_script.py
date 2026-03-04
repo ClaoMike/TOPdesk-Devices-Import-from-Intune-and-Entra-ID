@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from system import automationassets
 
-
 ########################################################################################################################
 
 class Config:
@@ -63,6 +62,11 @@ class ApiService:
         ApiService.__azure_access_token = (ApiService.
                                 __get_microsoft_online_access_token(scope='https://graph.microsoft.com/.default'))
 
+    # @staticmethod
+    # def get_microsoft_defender_access_token():
+    #     ApiService.__microsoft_defender_access_token = ApiService.__get_microsoft_online_access_token(
+    #         scope='https://api.securitycenter.microsoft.com/.default')
+
     @staticmethod
     def __get_microsoft_online_access_token(scope: str):
         response = requests.post(
@@ -81,6 +85,24 @@ class ApiService:
         if 200 <= response.status_code < 300:
             print(f"[✓] Successfully obtained access token for scope: {scope}")
             return response.json()['access_token']
+        else:
+            raise ValueError(f"Error {response.status_code}: {response.text}")
+
+########################################################################################################################
+
+class LenovoAPI:
+    @staticmethod
+    def get_lenovo_warranties(params: str):
+        url = f"https://supportapi.lenovo.com/v2.5/warranty?{params}"
+        headers = {
+            "ClientID": Config.lenovo_client_id,
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        response = requests.post(url, headers=headers)
+
+        if 200 <= response.status_code < 300:
+            return response.json()
         else:
             raise ValueError(f"Error {response.status_code}: {response.text}")
 
@@ -133,8 +155,12 @@ class OSClassifier:
 
 ########################################################################################################################
 
+from devices.os.OSClassifier import OSClassifier
+from datetime import datetime, timezone
+
 class IntuneDevice:
     def __init__(self, dict):
+        # Intune data
         self.__azureADDeviceId                      = dict.get("azureADDeviceId")
         azureADRegistered = dict.get("azureADRegistered")
         self.__azureADRegistered                    = False if azureADRegistered is None else azureADRegistered
@@ -153,11 +179,21 @@ class IntuneDevice:
         self.__model                                = dict.get("model")
         self.__operatingSystem                      = dict.get("operatingSystem")
         self.__osVersion                            = dict.get("osVersion")
-        self.__serialNumber                         = dict.get("serialNumber")
+        self.serialNumber                         = dict.get("serialNumber")
         self.__subscriberCarrier                    = dict.get("subscriberCarrier")
         self.__totalStorageSpaceInBytes             = dict.get("totalStorageSpaceInBytes")
         self.userId                                 = dict.get("userId")
 
+        # Lenovo data
+        # Warranty fields (for Lenovo devices only)
+        self.is_in_warranty = None
+        self.country = None
+        self.lenovo_product_webpage_url = None
+        self.product_name = None
+        self.warranty_expiration_date = None
+        self.number_of_days_left_until_the_warranty_expires = None
+
+        # TOPdesk data (computed, not fetched)
         self.__device_type                          = OSClassifier.get_device_type(self.__operatingSystem)
         self.topdesk_asset_id                       = f"{self.__device_type.value}-{self.__azureADDeviceId}"
 
@@ -183,10 +219,20 @@ class IntuneDevice:
             "model-1":                                  self.__model,
             "operating-system":                         self.__operatingSystem,
             "os-version":                               self.__osVersion,
-            "serial-number":                            self.__serialNumber,
+            "serial-number":                            self.serialNumber,
             "subscriber-carrier":                       self.__subscriberCarrier,
             "total-storage":                            IntuneDevice.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes),
-            "user-id":                                  self.userId
+            "user-id":                                  self.userId,
+
+            # Warranty fields
+            "is-in-warranty": self.is_in_warranty,
+            "country-warranty": self.country,
+            "model-provided-by-the-manufacturer": self.product_name,
+            # "warranty-expiration-date": self.warranty_expiration_date.strftime(
+                # "%Y-%m-%dT%H:%M:%S.000Z") if self.warranty_expiration_date else None,
+            "warranty-expiration-date": self.warranty_expiration_date,
+            "number-of-days-until-the-warranty-expires": self.number_of_days_left_until_the_warranty_expires,
+            "warranty-url": self.lenovo_product_webpage_url,
         }
 
     def requiresUpdate(self, target: dict) -> bool:
@@ -242,7 +288,7 @@ class IntuneDevice:
                     self.__osVersion, target.get("os-version")
                 ) and
                 IntuneDevice.__areEqual(
-                    self.__serialNumber, target.get("serial-number")
+                    self.serialNumber, target.get("serial-number")
                 ) and
                 IntuneDevice.__areEqual(
                     self.__subscriberCarrier, target.get("subscriber-carrier")
@@ -253,7 +299,63 @@ class IntuneDevice:
                 IntuneDevice.__areEqual(
                     self.userId, target.get("user-id")
                 )
+                # here comes Lenovo
+                and
+                IntuneDevice.__areEqual(
+                    self.is_in_warranty, target.get("is-in-warranty")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.country, target.get("country-warranty")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.product_name, target.get("model-provided-by-the-manufacturer")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.warranty_expiration_date, target.get("warranty-expiration-date")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.number_of_days_left_until_the_warranty_expires, target.get("number-of-days-until-the-warranty-expires")
+                )
+                and
+                IntuneDevice.__areEqual(
+                    self.lenovo_product_webpage_url, target.get("warranty-url")
+                )
         )
+
+    def add_warranty(self, warranty):
+        self.is_in_warranty                                 = warranty.get("InWarranty")
+        self.country                                        = warranty.get("Country")
+
+        product = warranty.get("Product")
+        if product is not None:
+            self.lenovo_product_webpage_url = f"https://pcsupport.lenovo.com/us/en/products/{product}/warranty"
+            tokens = product.split("/")
+            if len(tokens) > 2:
+                self.product_name = tokens[2]
+            else:
+                self.product_name = tokens[-1]
+        else:
+            self.lenovo_product_webpage_url = None
+            self.product_name = None
+
+        self.warranty_expiration_date = None
+        latest_warranty_date = datetime.min.replace(tzinfo=timezone.utc)
+        warranties = warranty.get("Warranty")
+        if warranties is not None:
+            for warranty in warranties:
+                end_date = datetime.strptime(warranty["End"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+                if end_date > latest_warranty_date:
+                    latest_warranty_date = end_date
+            self.warranty_expiration_date = latest_warranty_date
+
+        current_date = datetime.now(timezone.utc)
+        self.number_of_days_left_until_the_warranty_expires = (self.warranty_expiration_date - current_date).days + 1 if bool(self.is_in_warranty) else 0
+
+        self.warranty_expiration_date = self.warranty_expiration_date.isoformat() if self.warranty_expiration_date is not None else None
 
     @staticmethod
     def get_fields():
@@ -379,7 +481,6 @@ class TOPdeskAPI:
             if response.text != '':
                 if len(response.json()) == 0:
                     return None
-                print(f"Found: {response.json()}")
                 person_card = response.json()[0]
                 if person_card.get('status') != 'personArchived':
                     return person_card.get('id')
@@ -714,22 +815,31 @@ Config.load()
 # fetch the Microsoft Graph API access token - not valid forever
 ApiService.get_azure_access_token()
 
+print("Fetching Intune Devices")
 __intune_url = f"https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$top={Settings.INTUNE_DEVICES_PER_FETCHED_PAGE}"
 next_page = __intune_url
 
 topdesk_assets_that_must_not_be_deleted = []
+page_counter = 1
+
 while next_page:
     # fetch a page of intune devices, and the url for the next page
     current_page_devices, next_page = ApiService.get_devices_from_page(next_page)
+    print("Page: ", page_counter)
+    page_counter += 1
 
     # compute and store the topdesk Asset ID of the Intune devices
     for device in current_page_devices:
         topdesk_assets_that_must_not_be_deleted.append(IntuneDevice(device).topdesk_asset_id)
 
     # create new assets if required
+    print(
+        f"Found the following {len(current_page_devices)} devices: {[device.get('id') for device in current_page_devices]}")
     TOPdesk.create_topdesk_assets(current_page_devices)
 
     # current_page_devices contains devices that might need to be updated
+    print(
+        f"Check the following {len(current_page_devices)} devices for any updates: {[device.get('id') for device in current_page_devices]}")
     TOPdesk.update_topdesk_assets(current_page_devices)
 
     ### Load just one page of Intune devices when in development
@@ -738,5 +848,6 @@ while next_page:
 
 # delete assets in TOPdesk that are not in Intune anymore
 TOPdesk.remove_device_assets_except(topdesk_assets_that_must_not_be_deleted)
+
 
 ########################################################################################################################
