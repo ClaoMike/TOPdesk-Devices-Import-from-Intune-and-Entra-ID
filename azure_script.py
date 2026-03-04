@@ -1,6 +1,8 @@
 import requests
 from datetime import datetime, timezone
 from enum import Enum
+from dataclasses import dataclass
+from typing import Any, Callable, Optional
 from system import automationassets # dev
 # import automationassets # prod
 
@@ -39,9 +41,19 @@ class Config:
 ########################################################################################################################
 
 class Settings:
-    FETCH_JUST_ONE_PAGE_OF_INTUNE_DEVICES = False
+    FETCH_All_INTUNE_DEVICES = True
+    NUMBER_OF_INTUNE_DEVICES_PAGES_ALLOWED_FOR_FETCHING = 1
     DELETE_OUTDATED_TOPDESK_ASSETS = False
     INTUNE_DEVICES_PER_FETCHED_PAGE = 100 # should be 1000 for lenovo compliance
+
+########################################################################################################################
+
+@dataclass(frozen=True)
+class FieldCheck:
+    label: str
+    left: Callable[[], Any]                 # value from IntuneDevice (or computed)
+    right: Callable[[], Any]                # value from TOPdesk dict (or computed)
+    normalize: Optional[Callable[[Any], Any]] = None  # optional normalization for both sides
 
 ########################################################################################################################
 
@@ -62,7 +74,7 @@ class IntuneDevice:
         self.__lastSyncDateTime                     = dict.get("lastSyncDateTime")
         self.__managedDeviceOwnerType               = dict.get("managedDeviceOwnerType")
         self.__managementCertificateExpirationDate  = dict.get("managementCertificateExpirationDate")
-        self.__manufacturer                         = dict.get("manufacturer")
+        self.manufacturer                         = dict.get("manufacturer")
         self.__model                                = dict.get("model")
         self.__operatingSystem                      = dict.get("operatingSystem")
         self.__osVersion                            = dict.get("osVersion")
@@ -107,7 +119,7 @@ class IntuneDevice:
             "last-check-in":                            self.__lastSyncDateTime,
             "ownership":                                self.__managedDeviceOwnerType,
             "management-certificate-expiration-date":   self.__managementCertificateExpirationDate,
-            "manufacturer-1":                           self.__manufacturer,
+            "manufacturer-1":                           self.manufacturer,
             "model-1":                                  self.__model,
             "operating-system":                         self.__operatingSystem,
             "os-version":                               self.__osVersion,
@@ -131,108 +143,168 @@ class IntuneDevice:
         }
 
     def requiresUpdate(self, target: dict) -> bool:
-        return not (
-                IntuneDevice.__areEqual(
-                    self.azureADDeviceId, target.get("azure-id")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__azureADRegistered, target.get("azure-ad-registered")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__complianceState, target.get("compliance-status")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__deviceName, target.get("name-1")
-                ) and
-                IntuneDevice.__areEqual(
-                    IntuneDevice.__normalize_date(self.__enrolledDateTime) , IntuneDevice.__normalize_date(target.get("enrollment-date"))
-                ) and
-                IntuneDevice.__areEqual(
-                    IntuneDevice.__bytes_to_gb(self.__freeStorageSpaceInBytes), target.get("free-storage")) and
-                IntuneDevice.__areEqual(
-                    self.__id, target.get("intune-id")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__isEncrypted, target.get("encrypted")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__imei, target.get("imei")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__isSupervised, target.get("ismanaged")
-                ) and
-                IntuneDevice.__areEqual(
-                    IntuneDevice.__normalize_date(self.__lastSyncDateTime), IntuneDevice.__normalize_date(target.get("last-check-in"))
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__managedDeviceOwnerType, target.get("ownership")
-                ) and
-                IntuneDevice.__areEqual(
-                    IntuneDevice.__normalize_date(self.__managementCertificateExpirationDate), IntuneDevice.__normalize_date(target.get("management-certificate-expiration-date"))
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__manufacturer, target.get("manufacturer-1")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__model, target.get("model-1")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__operatingSystem, target.get("operating-system")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__osVersion, target.get("os-version")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.serialNumber, target.get("serial-number")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.__subscriberCarrier, target.get("subscriber-carrier")
-                ) and
-                IntuneDevice.__areEqual(
-                    IntuneDevice.__bytes_to_gb(self.__totalStorageSpaceInBytes), target.get("total-storage")
-                ) and
-                IntuneDevice.__areEqual(
-                    self.userId, target.get("user-id")
-                )
-                # here comes Lenovo
-                and
-                IntuneDevice.__areEqual(
-                    self.is_in_warranty, target.get("is-in-warranty")
-                )
-                and
-                IntuneDevice.__areEqual(
-                    self.country, target.get("country-warranty")
-                )
-                and
-                IntuneDevice.__areEqual(
-                    self.product_name, target.get("model-provided-by-the-manufacturer")
-                )
-                and
-                IntuneDevice.__areEqual(
-                    self.warranty_expiration_date, target.get("warranty-expiration-date")
-                )
-                and
-                IntuneDevice.__areEqual(
-                    self.number_of_days_left_until_the_warranty_expires, target.get("number-of-days-until-the-warranty-expires")
-                )
-                and
-                IntuneDevice.__areEqual(
-                    self.lenovo_product_webpage_url, target.get("warranty-url")
-                )
-                # here comes Microsoft Defender
-                and
-                IntuneDevice.__areEqual(
-                    self.__exposure_level, target.get("exposure-level")
-                )
-                and
-                IntuneDevice.__areEqual(
-                    self.__last_ip_address, target.get("last-ip-address")
-                )
-                and
-                IntuneDevice.__areEqual(
-                    self.__last_external_ip_address, target.get("last-external-ip-address")
-                )
-        )
+        asset_id = getattr(self, "topdesk_asset_id", None) or target.get("asset-id")  # adapt to your naming
+
+        checks = [
+            FieldCheck("azureADDeviceId / azure-id",
+                       lambda: self.azureADDeviceId,
+                       lambda: target.get("azure-id")),
+
+            FieldCheck("azureADRegistered / azure-ad-registered",
+                       lambda: self.__azureADRegistered,
+                       lambda: target.get("azure-ad-registered")),
+
+            FieldCheck("complianceState / compliance-status",
+                       lambda: self.__complianceState,
+                       lambda: target.get("compliance-status")),
+
+            FieldCheck("deviceName / name-1",
+                       lambda: self.__deviceName,
+                       lambda: target.get("name-1")),
+
+            FieldCheck("enrolledDateTime / enrollment-date",
+                       lambda: self.__enrolledDateTime,
+                       lambda: target.get("enrollment-date"),
+                       normalize=self.__normalize_date),
+
+            FieldCheck("freeStorageSpaceInBytes(GB) / free-storage",
+                       lambda: self.__bytes_to_gb(self.__freeStorageSpaceInBytes),
+                       lambda: target.get("free-storage")),
+
+            FieldCheck("intuneId / intune-id",
+                       lambda: self.__id,
+                       lambda: target.get("intune-id")),
+
+            FieldCheck("isEncrypted / encrypted",
+                       lambda: self.__isEncrypted,
+                       lambda: target.get("encrypted")),
+
+            FieldCheck("imei / imei",
+                       lambda: self.__imei,
+                       lambda: target.get("imei")),
+
+            FieldCheck("isSupervised / ismanaged",
+                       lambda: self.__isSupervised,
+                       lambda: target.get("ismanaged")),
+
+            FieldCheck("lastSyncDateTime / last-check-in",
+                       lambda: self.__lastSyncDateTime,
+                       lambda: target.get("last-check-in"),
+                       normalize=self.__normalize_date),
+
+            FieldCheck("ownership / ownership",
+                       lambda: self.__managedDeviceOwnerType,
+                       lambda: target.get("ownership")),
+
+            FieldCheck("managementCertExpiry / management-certificate-expiration-date",
+                       lambda: self.__managementCertificateExpirationDate,
+                       lambda: target.get("management-certificate-expiration-date"),
+                       normalize=self.__normalize_date),
+
+            FieldCheck("manufacturer / manufacturer-1",
+                       lambda: self.manufacturer,
+                       lambda: target.get("manufacturer-1")),
+
+            FieldCheck("model / model-1",
+                       lambda: self.__model,
+                       lambda: target.get("model-1")),
+
+            FieldCheck("operatingSystem / operating-system",
+                       lambda: self.__operatingSystem,
+                       lambda: target.get("operating-system")),
+
+            FieldCheck("osVersion / os-version",
+                       lambda: self.__osVersion,
+                       lambda: target.get("os-version")),
+
+            FieldCheck("serialNumber / serial-number",
+                       lambda: self.serialNumber,
+                       lambda: target.get("serial-number")),
+
+            FieldCheck("subscriberCarrier / subscriber-carrier",
+                       lambda: self.__subscriberCarrier,
+                       lambda: target.get("subscriber-carrier")),
+
+            FieldCheck("totalStorageSpaceInBytes(GB) / total-storage",
+                       lambda: self.__bytes_to_gb(self.__totalStorageSpaceInBytes),
+                       lambda: target.get("total-storage")),
+
+            FieldCheck("userId / user-id",
+                       lambda: self.userId,
+                       lambda: target.get("user-id")),
+
+            # Lenovo
+            FieldCheck("is_in_warranty / is-in-warranty",
+                       lambda: self.is_in_warranty,
+                       lambda: target.get("is-in-warranty")),
+
+            FieldCheck("country / country-warranty",
+                       lambda: self.country,
+                       lambda: target.get("country-warranty")),
+
+            FieldCheck("product_name / model-provided-by-the-manufacturer",
+                       lambda: self.product_name,
+                       lambda: target.get("model-provided-by-the-manufacturer")),
+
+            FieldCheck("warranty_expiration_date / warranty-expiration-date",
+                       lambda: self.warranty_expiration_date,
+                       lambda: target.get("warranty-expiration-date"),
+                       normalize=self.__normalize_date),
+
+            FieldCheck("days_left_warranty / number-of-days-until-the-warranty-expires",
+                       lambda: self.number_of_days_left_until_the_warranty_expires,
+                       lambda: target.get("number-of-days-until-the-warranty-expires")),
+
+            FieldCheck("lenovo_url / warranty-url",
+                       lambda: self.lenovo_product_webpage_url,
+                       lambda: target.get("warranty-url")),
+
+            # Microsoft Defender
+            FieldCheck("exposure_level / exposure-level",
+                       lambda: self.__exposure_level,
+                       lambda: target.get("exposure-level")),
+
+            FieldCheck("last_ip_address / last-ip-address",
+                       lambda: self.__last_ip_address,
+                       lambda: target.get("last-ip-address")),
+
+            FieldCheck("last_external_ip_address / last-external-ip-address",
+                       lambda: self.__last_external_ip_address,
+                       lambda: target.get("last-external-ip-address")),
+        ]
+
+        mismatches: list[tuple[str, Any, Any]] = []
+
+        for c in checks:
+            a = c.left()
+            b = c.right()
+
+            if c.normalize is not None:
+                a = c.normalize(a)
+                b = c.normalize(b)
+            else:
+                # All other fields: normalize generically
+                a = self.__normalize(a)
+                b = self.__normalize(b)
+
+            if a != b:
+                mismatches.append((c.label, a, b))
+
+        if not mismatches:
+            return False  # no update required
+
+        # Print verbose header only when something differs
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("Comparing Intune + Lenovo + Microsoft Defender device with TOPdesk asset")
+        print(f"Asset ID: {asset_id}")
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
+        for label, a, b in mismatches:
+            print(f"[MISMATCH] {label}")
+            print(f"  source: {a}")
+            print(f"  target: {b}\n")
+
+        return True
 
     def add_warranty(self, warranty):
         self.is_in_warranty                                 = warranty.get("InWarranty")
@@ -277,12 +349,6 @@ class IntuneDevice:
         return ",".join(IntuneDevice({}).to_json().keys())
 
     # Internal ---------------------------------------------------------------------------------------------------------
-    @staticmethod
-    def __areEqual(a, b) -> bool:
-        if a != b:
-            print("Comparing Intune vs. TOPdesk values")
-            print(f"Comparing {a} vs. {b}\n")
-        return a == b
 
     @staticmethod
     def __bytes_to_gb(bytes_value: int, decimals: int = 0) -> str:
@@ -293,6 +359,9 @@ class IntuneDevice:
 
     @staticmethod
     def __normalize_date(ts: str) -> datetime:
+        if ts in (None, ""):
+            return None
+
         ts = ts.strip()
 
         # Handle "Z" (UTC) from Intune
@@ -303,6 +372,27 @@ class IntuneDevice:
         dt = datetime.fromisoformat(ts)
 
         return dt.replace(tzinfo=timezone.utc)
+
+    @staticmethod
+    def __normalize(value):
+        if isinstance(value, str):
+            v = value.strip().lower()
+
+            if v in ("true", "false"):
+                return v == "true"
+
+            if v in ("True", "False"):
+                return v == "True"
+
+            if isinstance(value, bool):
+                return value
+
+            if v.isdigit():
+                return int(v)
+
+            return v
+
+        return value
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -676,7 +766,7 @@ class OSClassifier:
 ########################################################################################################################
 
 class TOPdesk:
-    __microsoft_defender_devices = None
+    __microsoft_defender_devices = dict()
 
     # Public -----------------------------------------------------------------------------------------------------------
     @staticmethod
@@ -718,6 +808,7 @@ class TOPdesk:
     @staticmethod
     def update_topdesk_assets(current_page_devices):
         intune_devices = []
+
         # create the IntuneDevice instance for each fetched Intune device
         for device in current_page_devices:
             intune_devices.append(IntuneDevice(device))
@@ -789,10 +880,12 @@ class TOPdesk:
     @staticmethod
     def get_Microsoft_Defender_devices():
         MicrosoftDefenderAPI.get_access_token()
-        TOPdesk.__microsoft_defender_devices = dict()
+        microsoft_defender_devices = MicrosoftDefenderAPI.get_devices()
 
-        for device in MicrosoftDefenderAPI.get_devices():
-            TOPdesk.__microsoft_defender_devices[device.get("azureADDeviceId")] = device
+        for device in microsoft_defender_devices:
+            device_id = device.get("aadDeviceId")
+            if device_id is not None:
+                TOPdesk.__microsoft_defender_devices[device_id] = device
 
     @staticmethod
     def __attach_Microsoft_Defender_data(intune_devices):
@@ -809,22 +902,27 @@ class TOPdesk:
         if len(intune_devices) == 0:
             return
 
-        intune_devices_by_serial_number_dictionary = dict()
+        lenovo_intune_devices_by_serial_number_dictionary = dict()
 
         for device in intune_devices:
-            # quick access for each device via its serial number
-            intune_devices_by_serial_number_dictionary[device.serialNumber] = device
+            # quick access for each device via its serial number, if it is a Lenovo device
+            if device.manufacturer == "LENOVO":
+                lenovo_intune_devices_by_serial_number_dictionary[device.serialNumber] = device
+
+        if len(lenovo_intune_devices_by_serial_number_dictionary.keys()) == 0:
+            return
+
+        print(f"Searching for Lenovo warranties for the following devices: {lenovo_intune_devices_by_serial_number_dictionary.keys()}")
 
         # generate the list of serial numbers as "Serial=...&Serial=..."
-        params = "Serial=" + "&Serial=".join(intune_devices_by_serial_number_dictionary.keys())
+        params = "Serial=" + "&Serial=".join(lenovo_intune_devices_by_serial_number_dictionary.keys())
         # fetch Lenovo warranties and stuff
         warranties = LenovoAPI.get_lenovo_warranties(params)
-        print(warranties)
 
         # attach the warranties
         for warranty in warranties:
             serial_number = warranty.get('Serial')
-            intune_device = intune_devices_by_serial_number_dictionary[serial_number]
+            intune_device = lenovo_intune_devices_by_serial_number_dictionary[serial_number]
 
             error_message = warranty.get('ErrorMessage')
             if error_message is not None and error_message != "":
@@ -946,10 +1044,6 @@ Config.load()
 print("Fetching Microsoft Defender Devices")
 TOPdesk.get_Microsoft_Defender_devices()
 
-print("Fetching Intune Devices")
-__intune_url = f"https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$top={Settings.INTUNE_DEVICES_PER_FETCHED_PAGE}"
-next_page = __intune_url
-
 # fetch the Microsoft Graph API access token - not valid forever
 IntuneAPI.get_access_token()
 
@@ -963,8 +1057,14 @@ page_counter = 1
 while next_page:
     # fetch a page of intune devices, and the url for the next page
     current_page_devices, next_page = IntuneAPI.get_devices_from_page(next_page)
+
+    # Development Control ----------------------------------------------------------------------------------------------
     print("Page: ", page_counter)
+    if not Settings.FETCH_All_INTUNE_DEVICES:
+        if Settings.NUMBER_OF_INTUNE_DEVICES_PAGES_ALLOWED_FOR_FETCHING == page_counter:
+            next_page = None
     page_counter += 1
+    # ----------------------------------------------------------------------------------------------
 
     # compute and store the topdesk Asset ID of the Intune devices
     for device in current_page_devices:
@@ -979,10 +1079,6 @@ while next_page:
     print(
         f"Check the following {len(current_page_devices)} devices for any updates: {[device.get('id') for device in current_page_devices]}")
     TOPdesk.update_topdesk_assets(current_page_devices)
-
-    ### Load just one page of Intune devices when in development
-    if Settings.FETCH_JUST_ONE_PAGE_OF_INTUNE_DEVICES:
-        next_page = None
 
 # delete assets in TOPdesk that are not in Intune anymore
 if Settings.DELETE_OUTDATED_TOPDESK_ASSETS:
