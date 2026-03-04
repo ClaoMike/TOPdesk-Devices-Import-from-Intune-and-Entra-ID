@@ -236,6 +236,10 @@ class IntuneDevice:
             if c.normalize is not None:
                 a = c.normalize(a)
                 b = c.normalize(b)
+            else:
+                # All other fields: normalize generically
+                a = self.__normalize(a)
+                b = self.__normalize(b)
 
             if a != b:
                 mismatches.append((c.label, a, b))
@@ -322,5 +326,26 @@ class IntuneDevice:
         dt = datetime.fromisoformat(ts)
 
         return dt.replace(tzinfo=timezone.utc)
+
+    @staticmethod
+    def __normalize(value):
+        if isinstance(value, str):
+            v = value.strip().lower()
+
+            if v in ("true", "false"):
+                return v == "true"
+
+            if v in ("True", "False"):
+                return v == "True"
+
+            if isinstance(value, bool):
+                return value
+
+            if v.isdigit():
+                return int(v)
+
+            return v
+
+        return value
 
     # ------------------------------------------------------------------------------------------------------------------

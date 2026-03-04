@@ -5,8 +5,6 @@ from system.Settings import Settings
 from devices.IntuneDevice import IntuneDevice
 
 # TODO #################################################################################################################
-# TODO 1. Detect and fix comparison bugs ###############################################################################
-# TODO 2. Detect and fix Lenovo warranties not being added #############################################################
 # TODO 3. Detect and fix Microsoft Defender not being added ############################################################
 # TODO 4. Fix TOPdesk assets deletion bug(s) ###########################################################################
 # TODO 5. Put sensible prints and remove the extra long ones - required for errors only ################################

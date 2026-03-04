@@ -46,6 +46,7 @@ class TOPdesk:
     @staticmethod
     def update_topdesk_assets(current_page_devices):
         intune_devices = []
+
         # create the IntuneDevice instance for each fetched Intune device
         for device in current_page_devices:
             intune_devices.append(IntuneDevice(device))
@@ -141,7 +142,7 @@ class TOPdesk:
 
         for device in intune_devices:
             # quick access for each device via its serial number, if it is a Lenovo device
-            if device.manufacturer == "Lenovo":
+            if device.manufacturer == "LENOVO":
                 lenovo_intune_devices_by_serial_number_dictionary[device.serialNumber] = device
 
         if len(lenovo_intune_devices_by_serial_number_dictionary.keys()) == 0:
@@ -153,7 +154,6 @@ class TOPdesk:
         params = "Serial=" + "&Serial=".join(lenovo_intune_devices_by_serial_number_dictionary.keys())
         # fetch Lenovo warranties and stuff
         warranties = LenovoAPI.get_lenovo_warranties(params)
-        print(warranties)
 
         # attach the warranties
         for warranty in warranties:
