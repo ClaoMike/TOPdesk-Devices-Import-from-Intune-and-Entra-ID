@@ -2,6 +2,10 @@ from system.Config import Config
 import requests
 from devices.IntuneDevice import IntuneDevice
 
+import time
+import socket
+from requests.exceptions import ConnectionError, Timeout, RequestException
+
 class TOPdeskAPI:
 
     # Create -----------------------------------------------------------------------------------------------------------
@@ -117,21 +121,49 @@ class TOPdeskAPI:
             raise ValueError(error_message)
 
     # Update -----------------------------------------------------------------------------------------------------------
+
     @staticmethod
-    def update_topdesk_asset(asset_id, device: IntuneDevice):
-        response = requests.post(
-            url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{asset_id}",
-            auth=(Config.topdesk_username, Config.topdesk_password),
-            headers={'Content-Type': 'application/json'},
-            json=device.to_json()
-        )
-        if 200 <= response.status_code < 300:
-            return response.json()
-        else:
-            error_message = f"Error {response.status_code}: {response.text}"
-            print(error_message)
-            print(device.to_json())
-            raise ValueError(error_message)
+    def resolve_host(hostname: str) -> str:
+        return socket.gethostbyname(hostname)
+
+    @staticmethod
+    def update_topdesk_asset(asset_id, device: IntuneDevice, max_attempts=5):
+        host = "dlfseeds.topdesk.net"
+        url = f"https://{host}/tas/api/assetmgmt/assets/{asset_id}"
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                ip = TOPdeskAPI.resolve_host(host)
+                print(f"[Attempt {attempt}] Resolved {host} to {ip}")
+
+                response = requests.post(
+                    url,
+                    auth=(Config.topdesk_username, Config.topdesk_password),
+                    headers={'Content-Type': 'application/json'},
+                    json=device.to_json(),
+                    timeout=30
+                )
+
+                response.raise_for_status()
+                return response.json()
+
+            except socket.gaierror as e:
+                print(f"[Attempt {attempt}] DNS resolution failed for {host}: {e}")
+
+            except (ConnectionError, Timeout) as e:
+                print(f"[Attempt {attempt}] Network error while calling TOPdesk: {e}")
+
+            except RequestException as e:
+                # This means the request reached the server but failed for another reason
+                print(f"[Attempt {attempt}] HTTP/application error: {e}")
+                raise
+
+            if attempt < max_attempts:
+                sleep_seconds = 2 ** attempt
+                print(f"Retrying in {sleep_seconds} seconds...")
+                time.sleep(sleep_seconds)
+
+        raise RuntimeError(f"Failed to update TOPdesk asset {asset_id} after {max_attempts} attempts")
 
     @staticmethod
     def assign_user(topdesk_person_card_id, topdesk_asset_id):
