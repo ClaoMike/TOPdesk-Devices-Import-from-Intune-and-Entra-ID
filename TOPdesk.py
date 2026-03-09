@@ -157,6 +157,16 @@ class TOPdesk:
         # fetch Lenovo warranties and stuff
         warranties = LenovoAPI.get_lenovo_warranties(params)
 
+        # some fallback values - None should never be returned
+        if warranties is None:
+            warranties = []
+        # this is for cases where only one item is returned, not a list of <more> items
+        elif isinstance(warranties, dict):
+            warranties = [warranties]
+        # trigger an error if there is some unexpected behaviour
+        elif not isinstance(warranties, list):
+            raise TypeError(f"Unexpected warranties type: {type(warranties)}")
+
         # attach the warranties
         for warranty in warranties:
             serial_number = warranty.get('Serial')
