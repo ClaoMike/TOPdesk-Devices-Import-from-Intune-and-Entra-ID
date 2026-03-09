@@ -7,6 +7,7 @@ import socket
 from requests.exceptions import ConnectionError, Timeout, RequestException
 
 class TOPdeskAPI:
+    __host = "dlfseeds.topdesk.net"
 
     # Create -----------------------------------------------------------------------------------------------------------
     @staticmethod
@@ -128,13 +129,12 @@ class TOPdeskAPI:
 
     @staticmethod
     def update_topdesk_asset(asset_id, device: IntuneDevice, max_attempts=5):
-        host = "dlfseeds.topdesk.net"
-        url = f"https://{host}/tas/api/assetmgmt/assets/{asset_id}"
+        url = f"https://{TOPdeskAPI.__host}/tas/api/assetmgmt/assets/{asset_id}"
 
         for attempt in range(1, max_attempts + 1):
             try:
-                ip = TOPdeskAPI.resolve_host(host)
-                print(f"[Attempt {attempt}] Resolved {host} to {ip}")
+                ip = TOPdeskAPI.resolve_host(TOPdeskAPI.__host)
+                print(f"[Attempt {attempt}] Resolved {TOPdeskAPI.__host} to {ip}")
 
                 response = requests.post(
                     url,
@@ -148,7 +148,7 @@ class TOPdeskAPI:
                 return response.json()
 
             except socket.gaierror as e:
-                print(f"[Attempt {attempt}] DNS resolution failed for {host}: {e}")
+                print(f"[Attempt {attempt}] DNS resolution failed for {TOPdeskAPI.__host}: {e}")
 
             except (ConnectionError, Timeout) as e:
                 print(f"[Attempt {attempt}] Network error while calling TOPdesk: {e}")
@@ -166,24 +166,42 @@ class TOPdeskAPI:
         raise RuntimeError(f"Failed to update TOPdesk asset {asset_id} after {max_attempts} attempts")
 
     @staticmethod
-    def assign_user(topdesk_person_card_id, topdesk_asset_id):
-        response = requests.put(
-            url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{topdesk_asset_id}/assignments",
-            auth=(Config.topdesk_username, Config.topdesk_password),
-            headers={
-                'Content-Type': 'application/json'
-            },
-            json={
-                "linkToId": topdesk_person_card_id,
-                "linkType": "person"
-            }
-        )
+    def assign_user(topdesk_person_card_id, topdesk_asset_id, max_attempts=5):
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = requests.put(
+                    url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets/{topdesk_asset_id}/assignments",
+                    auth=(Config.topdesk_username, Config.topdesk_password),
+                    headers={
+                        'Content-Type': 'application/json'
+                    },
+                    json={
+                        "linkToId": topdesk_person_card_id,
+                        "linkType": "person"
+                    },
+                    timeout=30
+                )
 
-        if 200 <= response.status_code < 300:
-            return
-        else:
-            error_message = f"Error {response.status_code}: {response.text}"
-            raise ValueError(error_message)
+                response.raise_for_status()
+                return
+
+            except socket.gaierror as e:
+                print(f"[Attempt {attempt}] DNS resolution failed for {TOPdeskAPI.__host}: {e}")
+
+            except (ConnectionError, Timeout) as e:
+                print(f"[Attempt {attempt}] Network error while calling TOPdesk: {e}")
+
+            except RequestException as e:
+                # This means the request reached the server but failed for another reason
+                print(f"[Attempt {attempt}] HTTP/application error: {e}")
+                raise
+
+            if attempt < max_attempts:
+                sleep_seconds = 2 ** attempt
+                print(f"Retrying in {sleep_seconds} seconds...")
+                time.sleep(sleep_seconds)
+
+        raise RuntimeError(f"Failed to assign user {topdesk_person_card_id} to TOPdesk asset {topdesk_asset_id} after {max_attempts} attempts")
 
     @staticmethod
     def archive_asset(asset_id: str):
