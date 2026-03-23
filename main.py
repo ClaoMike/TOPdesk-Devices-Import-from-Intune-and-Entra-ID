@@ -5,10 +5,8 @@ from system.Settings import Settings
 from devices.IntuneDevice import IntuneDevice
 
 # TODO #################################################################################################################
-# TODO 4. Fix TOPdesk assets deletion bug(s) ###########################################################################
-# TODO 5. Put sensible prints and remove the extra long ones - required for errors only ################################
-# TODO 6. Refactor #####################################################################################################
-# TODO 7. Import Azure Entra ID devices ################################################################################
+# TODO 1. Fix issues described in C 2603-0017Devices import issues #####################################################
+# TODO 2. Import Azure Entra ID devices ################################################################################
 # TODO #################################################################################################################
 
 # load config - contains ids and credentials for using various APIs
