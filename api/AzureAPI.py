@@ -1,30 +1,26 @@
 from api.MicrosoftGraphAPI import MicrosoftGraphAPI
 import requests
 
-class MicrosoftDefenderAPI:
+class AzureAPI:
     # Quick access variables -------------------------------------------------------------------------------------------
     __access_token = None
 
     # Microsoft Graph Endpoints ----------------------------------------------------------------------------------------
     @staticmethod
-    def get_devices():
+    def get_devices_from_page(page_url):
         response = requests.get(
-            url=f"https://api.security.microsoft.com/api/machines",
+            url=page_url,
             headers={
-                'Authorization': f'Bearer {MicrosoftDefenderAPI.__access_token}',
+                'Authorization': f'Bearer {AzureAPI.__access_token}',
                 'Content-Type': 'application/json'
             },
         )
-
         if 200 <= response.status_code < 300:
-            return response.json().get('value')
+            return response.json().get('value'), response.json().get('@odata.nextLink')
         else:
-            error_message = f"Error {response.status_code}: {response.text}"
-            raise ValueError(error_message)
+            raise ValueError(f"Error {response.status_code}: {response.text}")
 
-    # Access tokens methods --------------------------------------------------------------------------------------------
-
+    # Access token -----------------------------------------------------------------------------------------------------
     @staticmethod
     def get_access_token():
-        MicrosoftDefenderAPI.__access_token = MicrosoftGraphAPI.get_security_center_access_token()
-
+        AzureAPI.__access_token = MicrosoftGraphAPI.get_graph_access_token()

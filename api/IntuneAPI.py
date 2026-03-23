@@ -23,5 +23,4 @@ class IntuneAPI:
     # Access token -----------------------------------------------------------------------------------------------------
     @staticmethod
     def get_access_token():
-        IntuneAPI.__access_token = MicrosoftGraphAPI.get_access_token(
-            scope='https://graph.microsoft.com/.default')
+        IntuneAPI.__access_token = MicrosoftGraphAPI.get_graph_access_token()

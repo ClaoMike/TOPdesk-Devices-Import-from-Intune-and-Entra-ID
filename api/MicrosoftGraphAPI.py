@@ -2,8 +2,18 @@ import requests
 from system.Config import Config
 
 class MicrosoftGraphAPI:
+    graph_scope_url = 'https://graph.microsoft.com/.default'
+    securitycenter_scope_url = 'https://api.securitycenter.microsoft.com/.default'
+
     @staticmethod
-    def get_access_token(scope: str):
+    def get_security_center_access_token():
+        return MicrosoftGraphAPI.__get_access_token(scope=MicrosoftGraphAPI.securitycenter_scope_url)
+
+    @staticmethod
+    def get_graph_access_token():
+        return MicrosoftGraphAPI.__get_access_token(scope=MicrosoftGraphAPI.graph_scope_url)
+
+    def __get_access_token(scope: str):
         response = requests.post(
             url=f"https://login.microsoftonline.com/{Config.tenant_id}/oauth2/v2.0/token",
             headers={
