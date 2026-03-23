@@ -117,6 +117,8 @@ class TOPdesk:
 
     @staticmethod
     def get_Microsoft_Defender_devices():
+        print("Fetching Microsoft Defender Devices")
+
         MicrosoftDefenderAPI.get_access_token()
         microsoft_defender_devices = MicrosoftDefenderAPI.get_devices()
 

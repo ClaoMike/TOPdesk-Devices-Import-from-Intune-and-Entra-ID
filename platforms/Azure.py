@@ -1,4 +1,5 @@
 from api.AzureAPI import AzureAPI
+from system.Settings import Settings
 
 class Azure:
     @staticmethod
@@ -7,7 +8,7 @@ class Azure:
         AzureAPI.get_access_token()
 
         print("Fetching Azure Devices")
-        __intune_url = f"https://graph.microsoft.com/v1.0/devices?$top={Settings.INTUNE_DEVICES_PER_FETCHED_PAGE}"
+        __azure_url = f"https://graph.microsoft.com/v1.0/devices?$top={Settings.DEVICES_PER_FETCHED_PAGE}"
         next_page = __azure_url
 
         topdesk_assets_that_must_not_be_deleted = []
@@ -15,28 +16,30 @@ class Azure:
 
         while next_page:
             # fetch a page of intune devices, and the url for the next page
-            current_page_devices, next_page = IntuneAPI.get_devices_from_page(next_page)
+            current_page_devices, next_page = AzureAPI.get_devices_from_page(next_page)
 
             # Development Control ----------------------------------------------------------------------------------------------
             print("Page: ", page_counter)
-            if not Settings.FETCH_All_INTUNE_DEVICES:
-                if Settings.NUMBER_OF_INTUNE_DEVICES_PAGES_ALLOWED_FOR_FETCHING == page_counter:
+            if not Settings.FETCH_All_AZURE_DEVICES:
+                if Settings.NUMBER_OF_DEVICES_PAGES_ALLOWED_FOR_FETCHING == page_counter:
                     next_page = None
             page_counter += 1
+
+            print(current_page_devices)
             # ----------------------------------------------------------------------------------------------
 
             # compute and store the topdesk Asset ID of the Intune devices
-            for device in current_page_devices:
-                topdesk_assets_that_must_not_be_deleted.append(IntuneDevice(device).topdesk_asset_id)
-
-            # create new assets if required
-            print(
-                f"Found the following {len(current_page_devices)} devices: {[device.get('id') for device in current_page_devices]}")
-            TOPdesk.create_topdesk_assets(current_page_devices)
-
-            # current_page_devices contains devices that might need to be updated
-            print(
-                f"Check the following {len(current_page_devices)} devices for any updates: {[device.get('id') for device in current_page_devices]}")
-            TOPdesk.update_topdesk_assets(current_page_devices)
+            # for device in current_page_devices:
+            #     topdesk_assets_that_must_not_be_deleted.append(IntuneDevice(device).topdesk_asset_id)
+            #
+            # # create new assets if required
+            # print(
+            #     f"Found the following {len(current_page_devices)} devices: {[device.get('id') for device in current_page_devices]}")
+            # TOPdesk.create_topdesk_assets(current_page_devices)
+            #
+            # # current_page_devices contains devices that might need to be updated
+            # print(
+            #     f"Check the following {len(current_page_devices)} devices for any updates: {[device.get('id') for device in current_page_devices]}")
+            # TOPdesk.update_topdesk_assets(current_page_devices)
 
         return topdesk_assets_that_must_not_be_deleted

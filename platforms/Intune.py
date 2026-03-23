@@ -10,7 +10,7 @@ class Intune:
         IntuneAPI.get_access_token()
 
         print("Fetching Intune Devices")
-        __intune_url = f"https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$top={Settings.INTUNE_DEVICES_PER_FETCHED_PAGE}"
+        __intune_url = f"https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$top={Settings.DEVICES_PER_FETCHED_PAGE}"
         next_page = __intune_url
 
         topdesk_assets_that_must_not_be_deleted = []
@@ -23,7 +23,7 @@ class Intune:
             # Development Control ----------------------------------------------------------------------------------------------
             print("Page: ", page_counter)
             if not Settings.FETCH_All_INTUNE_DEVICES:
-                if Settings.NUMBER_OF_INTUNE_DEVICES_PAGES_ALLOWED_FOR_FETCHING == page_counter:
+                if Settings.NUMBER_OF_DEVICES_PAGES_ALLOWED_FOR_FETCHING == page_counter:
                     next_page = None
             page_counter += 1
             # ----------------------------------------------------------------------------------------------

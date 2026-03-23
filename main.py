@@ -12,14 +12,16 @@ from platforms.Azure import Azure
 Config.load()
 
 # fetch the Microsoft Defender devices at the start, as it sends all devices, no pagination involved
-print("Fetching Microsoft Defender Devices")
-TOPdesk.get_Microsoft_Defender_devices()
+if Settings.FETCH_MICROSOFT_DEFENDER_DEVICES:
+    TOPdesk.get_Microsoft_Defender_devices()
 
 # proces the Intune devices
-topdesk_assets_that_must_not_be_deleted = Intune.process_devices()
+if Settings.FETCH_INTUNE_DEVICES:
+    topdesk_assets_that_must_not_be_deleted = Intune.process_devices()
 
 # proces the Azure devices
-Azure.process_devices()
+if Settings.FETCH_AZURE_DEVICES:
+    Azure.process_devices()
 
 # delete assets in TOPdesk that are not in Intune anymore
 if Settings.DELETE_OUTDATED_TOPDESK_ASSETS:
