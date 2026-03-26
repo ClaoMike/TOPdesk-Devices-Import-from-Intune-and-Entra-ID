@@ -29,9 +29,9 @@ class Azure:
             # ----------------------------------------------------------------------------------------------
 
             # compute and store the topdesk Asset ID of the Intune devices
-            # for device in current_page_devices:
-            #     topdesk_assets_that_must_not_be_deleted.append(IntuneDevice(device).topdesk_asset_id)
-            #
+            for device in current_page_devices:
+                topdesk_assets_that_must_not_be_deleted.append(IntuneDevice(device).topdesk_asset_id)
+
             # # create new assets if required
             # print(
             #     f"Found the following {len(current_page_devices)} devices: {[device.get('id') for device in current_page_devices]}")
