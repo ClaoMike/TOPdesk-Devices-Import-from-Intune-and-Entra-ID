@@ -127,6 +127,22 @@ class TOPdeskAsset:
 
         return merged_dict
 
+    @staticmethod
+    def generate_topdesk_asset_id(source: DeviceSource, data: dict):
+        if source == DeviceSource.INTUNE:
+            azure_key = data.get("azureADDeviceId")
+        elif source == DeviceSource.AZURE:
+            azure_key = data.get("deviceId")
+
+        operatingSystem = data.get("operatingSystem") # this one is the same for both Azure and Intune
+        azureADDeviceId = data.get(azure_key)
+
+        # TOPdesk data (computed, not fetched)
+        device_type = OSClassifier.get_device_type(operatingSystem)
+        topdesk_asset_id = f"{device_type.value}-{azureADDeviceId}"
+
+        return topdesk_asset_id
+
     def requiresUpdate(self, target: dict) -> bool:
         asset_id = getattr(self, "topdesk_asset_id", None) or target.get("asset-id")  # adapt to your naming
 
