@@ -61,8 +61,9 @@ class TOPdeskAsset:
         self.__last_external_ip_address                     = None
 
         # TOPdesk data (computed, not fetched)
-        self.__device_type                                  = OSClassifier.get_device_type(self.__operatingSystem)
-        self.topdesk_asset_id                               = f"{self.__device_type.value}-{self.azureADDeviceId}"
+        self.__device_type, self.topdesk_asset_id = TOPdeskAsset.generate_topdesk_asset_data(
+            source=self.__source, data=data
+        )
 
     def to_json(self):
         # Warranty fields
@@ -127,11 +128,11 @@ class TOPdeskAsset:
         return merged_dict
 
     @staticmethod
-    def generate_topdesk_asset_id(source: DeviceSource, data: dict):
+    def generate_topdesk_asset_data(source: DeviceSource, data: dict):
         if source == DeviceSource.INTUNE:
-            azure_key = data.get("azureADDeviceId")
+            azure_key = "azureADDeviceId"
         else: # it is an azure device
-            azure_key = data.get("deviceId")
+            azure_key = "deviceId"
 
         operating_system = data.get("operatingSystem") # this one is the same for both Azure and Intune
         azure_id = data.get(azure_key)
@@ -140,7 +141,7 @@ class TOPdeskAsset:
         device_type = OSClassifier.get_device_type(operating_system)
         topdesk_asset_id = f"{device_type.value}-{azure_id}"
 
-        return topdesk_asset_id
+        return device_type, topdesk_asset_id
 
     def requiresUpdate(self, target: dict) -> bool:
         asset_id = getattr(self, "topdesk_asset_id", None) or target.get("asset-id")  # adapt to your naming

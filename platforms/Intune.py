@@ -31,9 +31,8 @@ class Intune:
 
             # compute and store the topdesk Asset ID of the Intune devices
             for device in current_page_devices:
-                topdesk_assets_that_must_not_be_deleted.append(
-                    TOPdeskAsset.generate_topdesk_asset_id(source=DeviceSource.INTUNE, data=device)
-                )
+                _, idx = TOPdeskAsset.generate_topdesk_asset_data(source=DeviceSource.INTUNE, data=device)
+                topdesk_assets_that_must_not_be_deleted.append(idx)
 
             # create new assets if required
             print(
