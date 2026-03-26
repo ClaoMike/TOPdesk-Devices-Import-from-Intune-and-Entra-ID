@@ -6,46 +6,48 @@ from typing import Any
 class IntuneDevice:
     def __init__(self, dict):
         # Intune data
-        self.azureADDeviceId                      = dict.get("azureADDeviceId")
+        self.azureADDeviceId                                = dict.get("azureADDeviceId")
+
         azureADRegistered = dict.get("azureADRegistered")
-        self.__azureADRegistered                    = False if azureADRegistered is None else azureADRegistered
-        self.__complianceState                      = dict.get("complianceState")
-        self.__deviceName                           = dict.get("deviceName")
-        self.__enrolledDateTime                     = dict.get("enrolledDateTime")
-        self.__freeStorageSpaceInBytes              = dict.get("freeStorageSpaceInBytes")
-        self.__id                                   = dict.get("id")
-        self.__isEncrypted                          = dict.get("isEncrypted")
-        self.__imei                                 = dict.get("imei")
-        self.__isSupervised                         = dict.get("isSupervised")
-        self.__lastSyncDateTime                     = dict.get("lastSyncDateTime")
-        self.__managedDeviceOwnerType               = dict.get("managedDeviceOwnerType")
-        self.__managementCertificateExpirationDate  = dict.get("managementCertificateExpirationDate")
-        self.manufacturer                         = dict.get("manufacturer")
-        self.__model                                = dict.get("model")
-        self.__operatingSystem                      = dict.get("operatingSystem")
-        self.__osVersion                            = dict.get("osVersion")
-        self.serialNumber                         = dict.get("serialNumber")
-        self.__subscriberCarrier                    = dict.get("subscriberCarrier")
-        self.__totalStorageSpaceInBytes             = dict.get("totalStorageSpaceInBytes")
-        self.userId                                 = dict.get("userId")
+        self.__azureADRegistered                            = False if azureADRegistered is None else azureADRegistered
+
+        self.__complianceState                              = dict.get("complianceState")
+        self.__deviceName                                   = dict.get("deviceName")
+        self.__enrolledDateTime                             = dict.get("enrolledDateTime")
+        self.__freeStorageSpaceInBytes                      = dict.get("freeStorageSpaceInBytes")
+        self.__id                                           = dict.get("id")
+        self.__isEncrypted                                  = dict.get("isEncrypted")
+        self.__imei                                         = dict.get("imei")
+        self.__isSupervised                                 = dict.get("isSupervised")
+        self.__lastSyncDateTime                             = dict.get("lastSyncDateTime")
+        self.__managedDeviceOwnerType                       = dict.get("managedDeviceOwnerType")
+        self.__managementCertificateExpirationDate          = dict.get("managementCertificateExpirationDate")
+        self.manufacturer                                   = dict.get("manufacturer")
+        self.__model                                        = dict.get("model")
+        self.__operatingSystem                              = dict.get("operatingSystem")
+        self.__osVersion                                    = dict.get("osVersion")
+        self.serialNumber                                   = dict.get("serialNumber")
+        self.__subscriberCarrier                            = dict.get("subscriberCarrier")
+        self.__totalStorageSpaceInBytes                     = dict.get("totalStorageSpaceInBytes")
+        self.userId                                         = dict.get("userId")
 
         # Lenovo data
         # Warranty fields (for Lenovo devices only)
-        self.is_in_warranty = None
-        self.country = None
-        self.lenovo_product_webpage_url = None
-        self.product_name = None
-        self.warranty_expiration_date = None
+        self.is_in_warranty                                 = None
+        self.country                                        = None
+        self.lenovo_product_webpage_url                     = None
+        self.product_name                                   = None
+        self.warranty_expiration_date                       = None
         self.number_of_days_left_until_the_warranty_expires = None
 
         # Microsoft Defender values
-        self.__last_ip_address = None
-        self.__exposure_level = None
-        self.__last_external_ip_address = None
+        self.__last_ip_address                              = None
+        self.__exposure_level                               = None
+        self.__last_external_ip_address                     = None
 
         # TOPdesk data (computed, not fetched)
-        self.__device_type                          = OSClassifier.get_device_type(self.__operatingSystem)
-        self.topdesk_asset_id                       = f"{self.__device_type.value}-{self.azureADDeviceId}"
+        self.__device_type                                  = OSClassifier.get_device_type(self.__operatingSystem)
+        self.topdesk_asset_id                               = f"{self.__device_type.value}-{self.azureADDeviceId}"
 
     def to_json(self):
         return {
