@@ -1,3 +1,5 @@
+from idlelib.debugobj_r import remote_object_tree_item
+
 from api.MicrosoftDefenderAPI import MicrosoftDefenderAPI
 from api.TOPdeskAPI import TOPdeskAPI
 from devices.TOPdeskAsset import TOPdeskAsset
@@ -9,48 +11,48 @@ class TOPdesk:
 
     # Public -----------------------------------------------------------------------------------------------------------
     @staticmethod
-    def create_topdesk_assets(current_page_devices):
+    def create_topdesk_assets(current_page_devices, source_type: DeviceSource):
         # get all ids of active devices from TOPdesk
         topdesk_assets_by_name_and_id_dictionary = TOPdesk.__get_topdesk_assets_as_asset_id_and_object_id_dictionary().keys()
 
         # create a copy, do not remove items while iterating the array
         current_page_devices_copy = current_page_devices.copy()
 
-        intune_devices_to_be_created = []
+        devices_to_be_created = []
 
         # for each device in the current page, create an IntuneDevice object
         # it automatically generates what would be the TOPdesk Asset ID
         for device in current_page_devices_copy:
-            intune_device = TOPdeskAsset(source=DeviceSource.INTUNE, data=device)
+            local_topdesk_device = TOPdeskAsset(source=source_type, data=device)
 
             # if the IntuneDevice has an Asset ID that is not present in TOPdesk yet
-            if intune_device.topdesk_asset_id not in topdesk_assets_by_name_and_id_dictionary:
+            if local_topdesk_device.topdesk_asset_id not in topdesk_assets_by_name_and_id_dictionary:
                 # we add it to the list of devices that need to be created
-                intune_devices_to_be_created.append(intune_device)
+                devices_to_be_created.append(local_topdesk_device)
 
                 # we've handled it, so it does not need to be checked for updates
                 current_page_devices.remove(device)
 
-        TOPdesk.__get_Lenovo_warranties(intune_devices_to_be_created)
-        TOPdesk.__attach_Microsoft_Defender_data(intune_devices_to_be_created)
+        TOPdesk.__get_Lenovo_warranties(devices_to_be_created)
+        TOPdesk.__attach_Microsoft_Defender_data(devices_to_be_created)
 
-        if len(intune_devices_to_be_created) > 0:
-            print(f"Creating {len(intune_devices_to_be_created)} assets: {[asset.topdesk_asset_id for asset in intune_devices_to_be_created]}")
+        if len(devices_to_be_created) > 0:
+            print(f"Creating {len(devices_to_be_created)} assets: {[asset.topdesk_asset_id for asset in devices_to_be_created]}")
 
         # for each intune device that needs to be created
-        for intune_device in intune_devices_to_be_created:
+        for local_topdesk_device in devices_to_be_created:
             # create it and save the response - linking to an user requires the new asset ID
-            topdesk_asset = TOPdeskAPI.create_topdesk_asset(intune_device)
+            remote_topdesk_asset = TOPdeskAPI.create_topdesk_asset(local_topdesk_device)
             # assign the user to it, if any
-            TOPdesk.__assign_user(topdesk_asset)
+            TOPdesk.__assign_user(remote_topdesk_asset)
 
     @staticmethod
-    def update_topdesk_assets(current_page_devices):
+    def update_topdesk_assets(current_page_devices, source_type: DeviceSource):
         intune_devices = []
 
         # create the IntuneDevice instance for each fetched Intune device
         for device in current_page_devices:
-            intune_devices.append(TOPdeskAsset(source=DeviceSource.INTUNE, data=device))
+            intune_devices.append(TOPdeskAsset(source=source_type, data=device))
 
         # fetch Lenovo data
         TOPdesk.__get_Lenovo_warranties(intune_devices)
@@ -139,24 +141,25 @@ class TOPdesk:
                 device.add_microsoft_defender_data(data)
 
     @staticmethod
-    def __get_Lenovo_warranties(intune_devices):
-        if len(intune_devices) == 0:
+    def __get_Lenovo_warranties(devices):
+        if len(devices) == 0:
             return
 
-        lenovo_intune_devices_by_serial_number_dictionary = dict()
+        lenovo_devices_by_serial_number_dictionary = dict()
 
-        for device in intune_devices:
+        for device in devices:
             # quick access for each device via its serial number, if it is a Lenovo device
-            if device.manufacturer == "LENOVO":
-                lenovo_intune_devices_by_serial_number_dictionary[device.serialNumber] = device
+            if hasattr(device, "manufacturer") and device.manufacturer == "LENOVO":
+                if hasattr(device, "serialNumber"):
+                    lenovo_devices_by_serial_number_dictionary[device.serialNumber] = device
 
-        if len(lenovo_intune_devices_by_serial_number_dictionary.keys()) == 0:
+        if len(lenovo_devices_by_serial_number_dictionary.keys()) == 0:
             return
 
-        print(f"Searching for Lenovo warranties for the following devices: {lenovo_intune_devices_by_serial_number_dictionary.keys()}")
+        print(f"Searching for Lenovo warranties for the following devices: {lenovo_devices_by_serial_number_dictionary.keys()}")
 
         # generate the list of serial numbers as "Serial=...&Serial=..."
-        params = "Serial=" + "&Serial=".join(lenovo_intune_devices_by_serial_number_dictionary.keys())
+        params = "Serial=" + "&Serial=".join(lenovo_devices_by_serial_number_dictionary.keys())
         # fetch Lenovo warranties and stuff
         warranties = LenovoAPI.get_lenovo_warranties(params)
 
@@ -173,14 +176,14 @@ class TOPdesk:
         # attach the warranties
         for warranty in warranties:
             serial_number = warranty.get('Serial')
-            intune_device = lenovo_intune_devices_by_serial_number_dictionary[serial_number]
+            device = lenovo_devices_by_serial_number_dictionary[serial_number]
 
             error_message = warranty.get('ErrorMessage')
             if error_message is not None and error_message != "":
-                print(f"Device with TOPdesk asset ID: {intune_device.topdesk_asset_id} and serial number: {serial_number} cannot be found in Lenovo warranty database: {error_message}!")
+                print(f"Device with TOPdesk asset ID: {device.topdesk_asset_id} and serial number: {serial_number} cannot be found in Lenovo warranty database: {error_message}!")
                 continue
 
-            intune_device.add_warranty(warranty)
+            device.add_warranty(warranty)
 
     @staticmethod
     def __assign_user(topdesk_asset):

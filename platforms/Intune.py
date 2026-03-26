@@ -38,11 +38,11 @@ class Intune:
             # create new assets if required
             print(
                 f"Found the following {len(current_page_devices)} devices: {[device.get('id') for device in current_page_devices]}")
-            TOPdesk.create_topdesk_assets(current_page_devices)
+            TOPdesk.create_topdesk_assets(current_page_devices, source_type=DeviceSource.INTUNE)
 
             # current_page_devices contains devices that might need to be updated
             print(
                 f"Check the following {len(current_page_devices)} devices for any updates: {[device.get('id') for device in current_page_devices]}")
-            TOPdesk.update_topdesk_assets(current_page_devices)
+            TOPdesk.update_topdesk_assets(current_page_devices, source_type=DeviceSource.INTUNE)
 
         return topdesk_assets_that_must_not_be_deleted

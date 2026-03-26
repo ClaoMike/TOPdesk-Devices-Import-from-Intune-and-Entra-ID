@@ -2,7 +2,7 @@ from devices.os.OSClassifier import OSClassifier
 from datetime import datetime, timezone
 from devices.FieldCheck import FieldCheck
 from typing import Any
-from DeviceSource import DeviceSource
+from devices.DeviceSource import DeviceSource
 
 class TOPdeskAsset:
     def __init__(self, source: DeviceSource, data: dict):
@@ -37,14 +37,14 @@ class TOPdeskAsset:
         elif source == DeviceSource.AZURE:
             self.azureADDeviceId                                = data.get("deviceId")
             self.__id                                           = data.get("id")
-            self.__displayName                                  = data.get("displayName")
-            self.__manufacturer                                 = data.get("manufacturer")
+            self.__deviceName                                  = data.get("displayName")
+            self.manufacturer                                   = data.get("manufacturer")
             self.__model                                        = data.get("model")
             self.__operatingSystem                              = data.get("operatingSystem")
-            self.__operatingSystemVersion                       = data.get("operatingSystemVersion")
-            self.__isManaged                                    = data.get("isManaged")
-            self.__approximateLastSignInDateTime                = data.get("approximateLastSignInDateTime")
-            self.__registrationDateTime                         = data.get("registrationDateTime")
+            self.__osVersion                       = data.get("operatingSystemVersion")
+            self.__isSupervised                                    = data.get("isManaged")
+            self.__lastSyncDateTime                = data.get("approximateLastSignInDateTime")
+            self.__enrolledDateTime                         = data.get("registrationDateTime")
 
         # Lenovo data
         # Warranty fields (for Lenovo devices only)
@@ -82,47 +82,46 @@ class TOPdeskAsset:
             "last-external-ip-address":                     self.__last_external_ip_address
         }
 
-        # Intune data
-        intune_fields_dict = {
-            "name":                                         self.topdesk_asset_id,
-            "type_id":                                      OSClassifier.get_device_template(self.__device_type),
+        if self.__source == DeviceSource.INTUNE:
+            data_dict = {
+                "azure-id":                                     self.azureADDeviceId,
+                "azure-ad-registered":                          self.__azureADRegistered,
+                "compliance-status":                            self.__complianceState,
+                "name-1":                                       self.__deviceName,
+                "enrollment-date":                              self.__enrolledDateTime,
+                "free-storage":                                 TOPdeskAsset.__bytes_to_gb(bytes_value=self.__freeStorageSpaceInBytes),
+                "intune-id":                                    self.__id,
+                "encrypted":                                    self.__isEncrypted,
+                "imei":                                         self.__imei,
+                "ismanaged":                                    self.__isSupervised,
+                "last-check-in":                                self.__lastSyncDateTime,
+                "ownership":                                    self.__managedDeviceOwnerType,
+                "management-certificate-expiration-date":       self.__managementCertificateExpirationDate,
+                "manufacturer-1":                               self.manufacturer,
+                "model-1":                                      self.__model,
+                "operating-system":                             self.__operatingSystem,
+                "os-version":                                   self.__osVersion,
+                "serial-number":                                self.serialNumber,
+                "subscriber-carrier":                           self.__subscriberCarrier,
+                "total-storage":                                TOPdeskAsset.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes),
+                "user-id":                                      self.userId,
+            }
+        else:
+            data_dict = {
+                "azure-id":                                     self.azureADDeviceId,
+                "name-1":                                       self.__deviceName,
+                "manufacturer-1":                               self.manufacturer,
+                "model-1":                                      self.__model,
+                "operating-system":                             self.__operatingSystem,
+                "os-version":                                   self.__osVersion,
+                "ismanaged":                                    self.__isSupervised,
+                "last-check-in":                                self.__lastSyncDateTime,
+                "enrollment-date":                              self.__enrolledDateTime
+            }
 
-            "azure-id":                                     self.azureADDeviceId,
-            "azure-ad-registered":                          self.__azureADRegistered,
-            "compliance-status":                            self.__complianceState,
-            "name-1":                                       self.__deviceName,
-            "enrollment-date":                              self.__enrolledDateTime,
-            "free-storage":                                 TOPdeskAsset.__bytes_to_gb(bytes_value=self.__freeStorageSpaceInBytes),
-            "intune-id":                                    self.__id,
-            "encrypted":                                    self.__isEncrypted,
-            "imei":                                         self.__imei,
-            "ismanaged":                                    self.__isSupervised,
-            "last-check-in":                                self.__lastSyncDateTime,
-            "ownership":                                    self.__managedDeviceOwnerType,
-            "management-certificate-expiration-date":       self.__managementCertificateExpirationDate,
-            "manufacturer-1":                               self.manufacturer,
-            "model-1":                                      self.__model,
-            "operating-system":                             self.__operatingSystem,
-            "os-version":                                   self.__osVersion,
-            "serial-number":                                self.serialNumber,
-            "subscriber-carrier":                           self.__subscriberCarrier,
-            "total-storage":                                TOPdeskAsset.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes),
-            "user-id":                                      self.userId,
-        }
+        data_dict["name"] =self.topdesk_asset_id
+        data_dict["type_id"] = OSClassifier.get_device_template(self.__device_type)
 
-        azure_fields_dict = {
-            "azure-id":                                     self.__deviceId,
-            "name-1":                                       self.__displayName,
-            "manufacturer-1":                               self.__manufacturer,
-            "model-1":                                      self.__model,
-            "operating-system":                             self.__operatingSystem,
-            "os-version":                                   self.__operatingSystemVersion,
-            "ismanaged":                                    self.__isManaged,
-            "last-check-in":                                self.__approximateLastSignInDateTime,
-            "enrollment-date":                                 self.__registrationDateTime
-        }
-
-        data_dict = intune_fields_dict if self.__source == DeviceSource.INTUNE else azure_fields_dict
         merged_dict = data_dict | warrant_fields_dict | microsoft_defender_fields_dict
 
         return merged_dict
@@ -131,15 +130,15 @@ class TOPdeskAsset:
     def generate_topdesk_asset_id(source: DeviceSource, data: dict):
         if source == DeviceSource.INTUNE:
             azure_key = data.get("azureADDeviceId")
-        elif source == DeviceSource.AZURE:
+        else: # it is an azure device
             azure_key = data.get("deviceId")
 
-        operatingSystem = data.get("operatingSystem") # this one is the same for both Azure and Intune
-        azureADDeviceId = data.get(azure_key)
+        operating_system = data.get("operatingSystem") # this one is the same for both Azure and Intune
+        azure_id = data.get(azure_key)
 
         # TOPdesk data (computed, not fetched)
-        device_type = OSClassifier.get_device_type(operatingSystem)
-        topdesk_asset_id = f"{device_type.value}-{azureADDeviceId}"
+        device_type = OSClassifier.get_device_type(operating_system)
+        topdesk_asset_id = f"{device_type.value}-{azure_id}"
 
         return topdesk_asset_id
 

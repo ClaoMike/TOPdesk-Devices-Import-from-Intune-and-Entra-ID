@@ -2,6 +2,7 @@ from api.AzureAPI import AzureAPI
 from devices.TOPdeskAsset import TOPdeskAsset
 from system.Settings import Settings
 from devices.DeviceSource import DeviceSource
+from platforms.TOPdesk import TOPdesk
 
 class Azure:
     @staticmethod
@@ -36,14 +37,14 @@ class Azure:
                     TOPdeskAsset.generate_topdesk_asset_id(source=DeviceSource.AZURE, data=device)
                 )
 
-            # # create new assets if required
-            # print(
-            #     f"Found the following {len(current_page_devices)} devices: {[device.get('id') for device in current_page_devices]}")
-            # TOPdesk.create_topdesk_assets(current_page_devices)
-            #
-            # # current_page_devices contains devices that might need to be updated
+            # create new assets if required
+            print(
+                f"Found the following {len(current_page_devices)} devices: {[device.get('id') for device in current_page_devices]}")
+            TOPdesk.create_topdesk_assets(current_page_devices, source_type=DeviceSource.AZURE)
+
+            # current_page_devices contains devices that might need to be updated
             # print(
             #     f"Check the following {len(current_page_devices)} devices for any updates: {[device.get('id') for device in current_page_devices]}")
-            # TOPdesk.update_topdesk_assets(current_page_devices)
+            # TOPdesk.update_topdesk_assets(current_page_devices, source_type=DeviceSource.AZURE)
 
         return topdesk_assets_that_must_not_be_deleted
