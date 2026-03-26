@@ -1,6 +1,6 @@
 from system.Config import Config
 import requests
-from devices.IntuneDevice import IntuneDevice
+from devices.TOPdeskAsset import TOPdeskAsset
 
 import time
 import socket
@@ -11,7 +11,7 @@ class TOPdeskAPI:
 
     # Create -----------------------------------------------------------------------------------------------------------
     @staticmethod
-    def create_topdesk_asset(asset: IntuneDevice):
+    def create_topdesk_asset(asset: TOPdeskAsset):
         response = requests.post(
             url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets",
             auth=(Config.topdesk_username, Config.topdesk_password),
@@ -128,7 +128,7 @@ class TOPdeskAPI:
         return socket.gethostbyname(hostname)
 
     @staticmethod
-    def update_topdesk_asset(asset_id, device: IntuneDevice, max_attempts=5):
+    def update_topdesk_asset(asset_id, device: TOPdeskAsset, max_attempts=5):
         url = f"https://{TOPdeskAPI.__host}/tas/api/assetmgmt/assets/{asset_id}"
 
         for attempt in range(1, max_attempts + 1):

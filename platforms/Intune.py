@@ -1,7 +1,8 @@
 from api.IntuneAPI import IntuneAPI
 from platforms.TOPdesk import TOPdesk
 from system.Settings import Settings
-from devices.IntuneDevice import IntuneDevice
+from devices.TOPdeskAsset import TOPdeskAsset
+from devices.DeviceSource import DeviceSource
 
 class Intune:
     @staticmethod
@@ -30,7 +31,9 @@ class Intune:
 
             # compute and store the topdesk Asset ID of the Intune devices
             for device in current_page_devices:
-                topdesk_assets_that_must_not_be_deleted.append(IntuneDevice(device).topdesk_asset_id)
+                topdesk_assets_that_must_not_be_deleted.append(
+                    TOPdeskAsset(source=DeviceSource.INTUNE, data=device).topdesk_asset_id
+                )
 
             # create new assets if required
             print(

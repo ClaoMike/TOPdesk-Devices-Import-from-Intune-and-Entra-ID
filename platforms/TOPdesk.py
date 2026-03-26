@@ -1,7 +1,8 @@
 from api.MicrosoftDefenderAPI import MicrosoftDefenderAPI
 from api.TOPdeskAPI import TOPdeskAPI
-from devices.IntuneDevice import IntuneDevice
+from devices.TOPdeskAsset import TOPdeskAsset
 from api.LenovoAPI import LenovoAPI
+from devices.DeviceSource import DeviceSource
 
 class TOPdesk:
     __microsoft_defender_devices = dict()
@@ -20,7 +21,7 @@ class TOPdesk:
         # for each device in the current page, create an IntuneDevice object
         # it automatically generates what would be the TOPdesk Asset ID
         for device in current_page_devices_copy:
-            intune_device = IntuneDevice(device)
+            intune_device = TOPdeskAsset(source=DeviceSource.INTUNE, data=device)
 
             # if the IntuneDevice has an Asset ID that is not present in TOPdesk yet
             if intune_device.topdesk_asset_id not in topdesk_assets_by_name_and_id_dictionary:
@@ -49,7 +50,7 @@ class TOPdesk:
 
         # create the IntuneDevice instance for each fetched Intune device
         for device in current_page_devices:
-            intune_devices.append(IntuneDevice(device))
+            intune_devices.append(TOPdeskAsset(source=DeviceSource.INTUNE, data=device))
 
         # fetch Lenovo data
         TOPdesk.__get_Lenovo_warranties(intune_devices)
@@ -252,7 +253,7 @@ class TOPdesk:
                 page_start=page_start,
                 page_size=page_size,
                 names=ids,
-                fields=IntuneDevice.get_fields()
+                fields=TOPdeskAsset.get_fields()
             ).get("dataSet")
 
             for asset in current_page_assets:

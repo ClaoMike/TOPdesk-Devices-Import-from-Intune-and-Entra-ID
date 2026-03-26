@@ -2,34 +2,49 @@ from devices.os.OSClassifier import OSClassifier
 from datetime import datetime, timezone
 from devices.FieldCheck import FieldCheck
 from typing import Any
+from DeviceSource import DeviceSource
 
-class IntuneDevice:
-    def __init__(self, dict):
-        # Intune data
-        self.azureADDeviceId                                = dict.get("azureADDeviceId")
+class TOPdeskAsset:
+    def __init__(self, source: DeviceSource, data: dict):
+        self.__source = source
 
-        azureADRegistered = dict.get("azureADRegistered")
-        self.__azureADRegistered                            = False if azureADRegistered is None else azureADRegistered
+        if self.__source == DeviceSource.INTUNE:
+            self.azureADDeviceId                                = data.get("azureADDeviceId")
 
-        self.__complianceState                              = dict.get("complianceState")
-        self.__deviceName                                   = dict.get("deviceName")
-        self.__enrolledDateTime                             = dict.get("enrolledDateTime")
-        self.__freeStorageSpaceInBytes                      = dict.get("freeStorageSpaceInBytes")
-        self.__id                                           = dict.get("id")
-        self.__isEncrypted                                  = dict.get("isEncrypted")
-        self.__imei                                         = dict.get("imei")
-        self.__isSupervised                                 = dict.get("isSupervised")
-        self.__lastSyncDateTime                             = dict.get("lastSyncDateTime")
-        self.__managedDeviceOwnerType                       = dict.get("managedDeviceOwnerType")
-        self.__managementCertificateExpirationDate          = dict.get("managementCertificateExpirationDate")
-        self.manufacturer                                   = dict.get("manufacturer")
-        self.__model                                        = dict.get("model")
-        self.__operatingSystem                              = dict.get("operatingSystem")
-        self.__osVersion                                    = dict.get("osVersion")
-        self.serialNumber                                   = dict.get("serialNumber")
-        self.__subscriberCarrier                            = dict.get("subscriberCarrier")
-        self.__totalStorageSpaceInBytes                     = dict.get("totalStorageSpaceInBytes")
-        self.userId                                         = dict.get("userId")
+            azureADRegistered                                   = data.get("azureADRegistered")
+            self.__azureADRegistered                            = False if azureADRegistered is None else azureADRegistered
+
+            self.__complianceState                              = data.get("complianceState")
+            self.__deviceName                                   = data.get("deviceName")
+            self.__enrolledDateTime                             = data.get("enrolledDateTime")
+            self.__freeStorageSpaceInBytes                      = data.get("freeStorageSpaceInBytes")
+            self.__id                                           = data.get("id")
+            self.__isEncrypted                                  = data.get("isEncrypted")
+            self.__imei                                         = data.get("imei")
+            self.__isSupervised                                 = data.get("isSupervised")
+            self.__lastSyncDateTime                             = data.get("lastSyncDateTime")
+            self.__managedDeviceOwnerType                       = data.get("managedDeviceOwnerType")
+            self.__managementCertificateExpirationDate          = data.get("managementCertificateExpirationDate")
+            self.manufacturer                                   = data.get("manufacturer")
+            self.__model                                        = data.get("model")
+            self.__operatingSystem                              = data.get("operatingSystem")
+            self.__osVersion                                    = data.get("osVersion")
+            self.serialNumber                                   = data.get("serialNumber")
+            self.__subscriberCarrier                            = data.get("subscriberCarrier")
+            self.__totalStorageSpaceInBytes                     = data.get("totalStorageSpaceInBytes")
+            self.userId                                         = data.get("userId")
+
+        elif source == DeviceSource.AZURE:
+            self.azureADDeviceId                                = data.get("deviceId")
+            self.__id                                           = data.get("id")
+            self.__displayName                                  = data.get("displayName")
+            self.__manufacturer                                 = data.get("manufacturer")
+            self.__model                                        = data.get("model")
+            self.__operatingSystem                              = data.get("operatingSystem")
+            self.__operatingSystemVersion                       = data.get("operatingSystemVersion")
+            self.__isManaged                                    = data.get("isManaged")
+            self.__approximateLastSignInDateTime                = data.get("approximateLastSignInDateTime")
+            self.__registrationDateTime                         = data.get("registrationDateTime")
 
         # Lenovo data
         # Warranty fields (for Lenovo devices only)
@@ -50,45 +65,67 @@ class IntuneDevice:
         self.topdesk_asset_id                               = f"{self.__device_type.value}-{self.azureADDeviceId}"
 
     def to_json(self):
-        return {
-            "name":                                     self.topdesk_asset_id,
-            "type_id":                                  OSClassifier.get_device_template(self.__device_type),
-
-            "azure-id":                                 self.azureADDeviceId,
-            "azure-ad-registered":                      self.__azureADRegistered,
-            "compliance-status":                        self.__complianceState,
-            "name-1":                                   self.__deviceName,
-            "enrollment-date":                          self.__enrolledDateTime,
-            "free-storage":                             IntuneDevice.__bytes_to_gb(bytes_value=self.__freeStorageSpaceInBytes),
-            "intune-id":                                self.__id,
-            "encrypted":                                self.__isEncrypted,
-            "imei":                                     self.__imei,
-            "ismanaged":                                self.__isSupervised,
-            "last-check-in":                            self.__lastSyncDateTime,
-            "ownership":                                self.__managedDeviceOwnerType,
-            "management-certificate-expiration-date":   self.__managementCertificateExpirationDate,
-            "manufacturer-1":                           self.manufacturer,
-            "model-1":                                  self.__model,
-            "operating-system":                         self.__operatingSystem,
-            "os-version":                               self.__osVersion,
-            "serial-number":                            self.serialNumber,
-            "subscriber-carrier":                       self.__subscriberCarrier,
-            "total-storage":                            IntuneDevice.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes),
-            "user-id":                                  self.userId,
-
-            # Warranty fields
-            "is-in-warranty": self.is_in_warranty,
-            "country-warranty": self.country,
-            "model-provided-by-the-manufacturer": self.product_name,
-            "warranty-expiration-date": self.warranty_expiration_date,
-            "number-of-days-until-the-warranty-expires": self.number_of_days_left_until_the_warranty_expires,
-            "warranty-url": self.lenovo_product_webpage_url,
-
-            # Microsoft Defender data
-            "exposure-level": self.__exposure_level,
-            "last-ip-address": self.__last_ip_address,
-            "last-external-ip-address": self.__last_external_ip_address
+        # Warranty fields
+        warrant_fields_dict = {
+            "is-in-warranty":                               self.is_in_warranty,
+            "country-warranty":                             self.country,
+            "model-provided-by-the-manufacturer":           self.product_name,
+            "warranty-expiration-date":                     self.warranty_expiration_date,
+            "number-of-days-until-the-warranty-expires":    self.number_of_days_left_until_the_warranty_expires,
+            "warranty-url":                                 self.lenovo_product_webpage_url
         }
+
+        # Microsoft Defender data
+        microsoft_defender_fields_dict = {
+            "exposure-level":                               self.__exposure_level,
+            "last-ip-address":                              self.__last_ip_address,
+            "last-external-ip-address":                     self.__last_external_ip_address
+        }
+
+        # Intune data
+        intune_fields_dict = {
+            "name":                                         self.topdesk_asset_id,
+            "type_id":                                      OSClassifier.get_device_template(self.__device_type),
+
+            "azure-id":                                     self.azureADDeviceId,
+            "azure-ad-registered":                          self.__azureADRegistered,
+            "compliance-status":                            self.__complianceState,
+            "name-1":                                       self.__deviceName,
+            "enrollment-date":                              self.__enrolledDateTime,
+            "free-storage":                                 TOPdeskAsset.__bytes_to_gb(bytes_value=self.__freeStorageSpaceInBytes),
+            "intune-id":                                    self.__id,
+            "encrypted":                                    self.__isEncrypted,
+            "imei":                                         self.__imei,
+            "ismanaged":                                    self.__isSupervised,
+            "last-check-in":                                self.__lastSyncDateTime,
+            "ownership":                                    self.__managedDeviceOwnerType,
+            "management-certificate-expiration-date":       self.__managementCertificateExpirationDate,
+            "manufacturer-1":                               self.manufacturer,
+            "model-1":                                      self.__model,
+            "operating-system":                             self.__operatingSystem,
+            "os-version":                                   self.__osVersion,
+            "serial-number":                                self.serialNumber,
+            "subscriber-carrier":                           self.__subscriberCarrier,
+            "total-storage":                                TOPdeskAsset.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes),
+            "user-id":                                      self.userId,
+        }
+
+        azure_fields_dict = {
+            "azure-id":                                     self.__deviceId,
+            "name-1":                                       self.__displayName,
+            "manufacturer-1":                               self.__manufacturer,
+            "model-1":                                      self.__model,
+            "operating-system":                             self.__operatingSystem,
+            "os-version":                                   self.__operatingSystemVersion,
+            "ismanaged":                                    self.__isManaged,
+            "last-check-in":                                self.__approximateLastSignInDateTime,
+            "enrollment-date":                                 self.__registrationDateTime
+        }
+
+        data_dict = intune_fields_dict if self.__source == DeviceSource.INTUNE else azure_fields_dict
+        merged_dict = data_dict | warrant_fields_dict | microsoft_defender_fields_dict
+
+        return merged_dict
 
     def requiresUpdate(self, target: dict) -> bool:
         asset_id = getattr(self, "topdesk_asset_id", None) or target.get("asset-id")  # adapt to your naming
@@ -294,7 +331,7 @@ class IntuneDevice:
 
     @staticmethod
     def get_fields():
-        return ",".join(IntuneDevice({}).to_json().keys())
+        return ",".join(TOPdeskAsset(data={}).to_json().keys())
 
     # Internal ---------------------------------------------------------------------------------------------------------
 
