@@ -1,59 +1,23 @@
 from api.AzureAPI import AzureAPI
-from devices.TOPdeskAsset import TOPdeskAsset
-from system.Settings import Settings
 from devices.DeviceSource import DeviceSource
-from platforms.TOPdesk import TOPdesk
+from system.Settings import Settings
+from platforms.GraphDevicePlatformProcessor import GraphDeviceProcessor
 
-class Azure:
-    @staticmethod
-    def process_devices():
-        # fetch the Microsoft Graph API access token - not valid forever
-        AzureAPI.get_access_token()
+class Azure(GraphDeviceProcessor):
+    API = AzureAPI
+    SOURCE = DeviceSource.AZURE
+    INITIAL_URL = (
+        f"https://graph.microsoft.com/v1.0/devices"
+        f"?$top={Settings.DEVICES_PER_FETCHED_PAGE}"
+    )
+    FETCH_ALL_FLAG = "FETCH_All_AZURE_DEVICES"
+    DEVICE_ID_FIELD_FOR_LOGGING = "deviceId"
 
-        print("Fetching Azure Devices")
-        __azure_url = f"https://graph.microsoft.com/v1.0/devices?$top={Settings.DEVICES_PER_FETCHED_PAGE}"
-        next_page = __azure_url
-
-        topdesk_assets_that_must_not_be_deleted = []
-        page_counter = 1
-
-        while next_page:
-            # fetch a page of intune devices, and the url for the next page
-            current_page_devices, next_page = AzureAPI.get_devices_from_page(next_page)
-
-            # Development Control ----------------------------------------------------------------------------------------------
-            print("Page: ", page_counter)
-            if not Settings.FETCH_All_AZURE_DEVICES:
-                if Settings.NUMBER_OF_DEVICES_PAGES_ALLOWED_FOR_FETCHING == page_counter:
-                    next_page = None
-            page_counter += 1
-
-            # print(current_page_devices)
-            # ----------------------------------------------------------------------------------------------
-
-            # compute and store the topdesk Asset ID of the Intune devices
-            for device in current_page_devices:
-                _, idx = TOPdeskAsset.generate_topdesk_asset_data(source=DeviceSource.AZURE, data=device)
-                topdesk_assets_that_must_not_be_deleted.append(idx)
-
-            Azure.__attach_azure_users_to_devices(current_page_devices)
-
-            # create new assets if required
-            print(f"Found the following {len(current_page_devices)} devices: "
-                  f"{[device.get('deviceId') for device in current_page_devices]}")
-            TOPdesk.create_topdesk_assets(current_page_devices, source_type=DeviceSource.AZURE)
-
-            # current_page_devices contains devices that might need to be updated
-            print(f"Check the following {len(current_page_devices)} devices for any updates: "
-                  f"{[device.get('deviceId') for device in current_page_devices]}")
-            TOPdesk.update_topdesk_assets(current_page_devices, source_type=DeviceSource.AZURE)
-
-        return topdesk_assets_that_must_not_be_deleted
-
-    @staticmethod
-    def __attach_azure_users_to_devices(current_page_devices):
+    @classmethod
+    def enrich_devices(cls, current_page_devices):
         device_ids = {device.get("id"): device for device in current_page_devices}
-        users = AzureAPI.batch_get_registered_users(device_ids)
+        users = cls.API.batch_get_registered_users(device_ids)
 
         for device_id, user in users.items():
-            device_ids[device_id]["userId"] = user
+            if device_id in device_ids:
+                device_ids[device_id]["userId"] = user
