@@ -37,14 +37,15 @@ class TOPdeskAsset:
         elif source == DeviceSource.AZURE:
             self.azureADDeviceId                                = data.get("deviceId")
             self.__id                                           = data.get("id")
-            self.__deviceName                                  = data.get("displayName")
+            self.__deviceName                                   = data.get("displayName")
             self.manufacturer                                   = data.get("manufacturer")
             self.__model                                        = data.get("model")
             self.__operatingSystem                              = data.get("operatingSystem")
-            self.__osVersion                       = data.get("operatingSystemVersion")
-            self.__isSupervised                                    = data.get("isManaged")
-            self.__lastSyncDateTime                = data.get("approximateLastSignInDateTime")
-            self.__enrolledDateTime                         = data.get("registrationDateTime")
+            self.__osVersion                                    = data.get("operatingSystemVersion")
+            self.__isSupervised                                 = data.get("isManaged")
+            self.__lastSyncDateTime                             = data.get("approximateLastSignInDateTime")
+            self.__enrolledDateTime                             = data.get("registrationDateTime")
+            self.userId                                         = data.get("userId")
 
         # Lenovo data
         # Warranty fields (for Lenovo devices only)

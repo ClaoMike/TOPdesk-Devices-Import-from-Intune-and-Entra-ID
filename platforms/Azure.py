@@ -36,6 +36,8 @@ class Azure:
                 _, idx = TOPdeskAsset.generate_topdesk_asset_data(source=DeviceSource.AZURE, data=device)
                 topdesk_assets_that_must_not_be_deleted.append(idx)
 
+            Azure.__attach_azure_users_to_devices(current_page_devices)
+
             # create new assets if required
             print(
                 f"Found the following {len(current_page_devices)} devices: {[device.get('id') for device in current_page_devices]}")
@@ -47,3 +49,11 @@ class Azure:
             # TOPdesk.update_topdesk_assets(current_page_devices, source_type=DeviceSource.AZURE)
 
         return topdesk_assets_that_must_not_be_deleted
+
+    @staticmethod
+    def __attach_azure_users_to_devices(current_page_devices):
+        device_ids = {device.get("id"): device for device in current_page_devices}
+        users = AzureAPI.batch_get_registered_users(device_ids)
+
+        for device_id, user in users.items():
+            device_ids[device_id]["userId"] = user
