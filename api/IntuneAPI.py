@@ -8,17 +8,7 @@ class IntuneAPI:
     # Microsoft Graph Endpoints ----------------------------------------------------------------------------------------
     @staticmethod
     def get_devices_from_page(page_url):
-        response = requests.get(
-            url=page_url,
-            headers={
-                'Authorization': f'Bearer {IntuneAPI.__access_token}',
-                'Content-Type': 'application/json'
-            },
-        )
-        if 200 <= response.status_code < 300:
-            return response.json().get('value'), response.json().get('@odata.nextLink')
-        else:
-            raise ValueError(f"Error {response.status_code}: {response.text}")
+        return MicrosoftGraphAPI.get_devices_from_page(page_url, IntuneAPI.__access_token)
 
     # Access token -----------------------------------------------------------------------------------------------------
     @staticmethod
