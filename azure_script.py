@@ -6,6 +6,7 @@ from typing import Any, Callable, Optional
 import time
 import socket
 from requests.exceptions import ConnectionError, Timeout, RequestException
+from itertools import chain
 
 from system import automationassets # dev
 # import automationassets # prod
@@ -45,10 +46,17 @@ class Config:
 ########################################################################################################################
 
 class Settings:
+    FETCH_AZURE_DEVICES = True
+    FETCH_INTUNE_DEVICES = True
+    FETCH_MICROSOFT_DEFENDER_DEVICES = True
+
+    FETCH_All_AZURE_DEVICES = True
     FETCH_All_INTUNE_DEVICES = True
-    NUMBER_OF_INTUNE_DEVICES_PAGES_ALLOWED_FOR_FETCHING = 1
-    DELETE_OUTDATED_TOPDESK_ASSETS = False
-    INTUNE_DEVICES_PER_FETCHED_PAGE = 100 # should be 1000 for lenovo compliance
+
+    NUMBER_OF_DEVICES_PAGES_ALLOWED_FOR_FETCHING = 1
+
+    DELETE_OUTDATED_TOPDESK_ASSETS = True
+    DEVICES_PER_FETCHED_PAGE = 100 # should be 1000 for lenovo compliance
 
 ########################################################################################################################
 
@@ -61,99 +69,137 @@ class FieldCheck:
 
 ########################################################################################################################
 
-class IntuneDevice:
-    def __init__(self, dict):
-        # Intune data
-        self.azureADDeviceId                      = dict.get("azureADDeviceId")
-        azureADRegistered = dict.get("azureADRegistered")
-        self.__azureADRegistered                    = False if azureADRegistered is None else azureADRegistered
-        self.__complianceState                      = dict.get("complianceState")
-        self.__deviceName                           = dict.get("deviceName")
-        self.__enrolledDateTime                     = dict.get("enrolledDateTime")
-        self.__freeStorageSpaceInBytes              = dict.get("freeStorageSpaceInBytes")
-        self.__id                                   = dict.get("id")
-        self.__isEncrypted                          = dict.get("isEncrypted")
-        self.__imei                                 = dict.get("imei")
-        self.__isSupervised                         = dict.get("isSupervised")
-        self.__lastSyncDateTime                     = dict.get("lastSyncDateTime")
-        self.__managedDeviceOwnerType               = dict.get("managedDeviceOwnerType")
-        self.__managementCertificateExpirationDate  = dict.get("managementCertificateExpirationDate")
-        self.manufacturer                         = dict.get("manufacturer")
-        self.__model                                = dict.get("model")
-        self.__operatingSystem                      = dict.get("operatingSystem")
-        self.__osVersion                            = dict.get("osVersion")
-        self.serialNumber                         = dict.get("serialNumber")
-        self.__subscriberCarrier                    = dict.get("subscriberCarrier")
-        self.__totalStorageSpaceInBytes             = dict.get("totalStorageSpaceInBytes")
-        self.userId                                 = dict.get("userId")
+class DeviceSource(Enum):
+    INTUNE = 1
+    AZURE = 2
+
+########################################################################################################################
+
+class TOPdeskAsset:
+    def __init__(self, source: DeviceSource, data: dict):
+        self.__source = source
+
+        if self.__source == DeviceSource.INTUNE:
+            self.azureADDeviceId                                = data.get("azureADDeviceId")
+
+            azureADRegistered                                   = data.get("azureADRegistered")
+            self.__azureADRegistered                            = False if azureADRegistered is None else azureADRegistered
+
+            self.__complianceState                              = data.get("complianceState")
+            self.__deviceName                                   = data.get("deviceName")
+            self.__enrolledDateTime                             = data.get("enrolledDateTime")
+            self.__freeStorageSpaceInBytes                      = data.get("freeStorageSpaceInBytes")
+            self.__id                                           = data.get("id")
+            self.__isEncrypted                                  = data.get("isEncrypted")
+            self.__imei                                         = data.get("imei")
+            self.__isSupervised                                 = data.get("isSupervised")
+            self.__lastSyncDateTime                             = data.get("lastSyncDateTime")
+            self.__managedDeviceOwnerType                       = data.get("managedDeviceOwnerType")
+            self.__managementCertificateExpirationDate          = data.get("managementCertificateExpirationDate")
+            self.manufacturer                                   = data.get("manufacturer")
+            self.__model                                        = data.get("model")
+            self.__operatingSystem                              = data.get("operatingSystem")
+            self.__osVersion                                    = data.get("osVersion")
+            self.serialNumber                                   = data.get("serialNumber")
+            self.__subscriberCarrier                            = data.get("subscriberCarrier")
+            self.__totalStorageSpaceInBytes                     = data.get("totalStorageSpaceInBytes")
+            self.userId                                         = data.get("userId")
+
+        elif source == DeviceSource.AZURE:
+            self.azureADDeviceId                                = data.get("deviceId")
+            self.__id                                           = data.get("id")
+            self.__deviceName                                   = data.get("displayName")
+            self.manufacturer                                   = data.get("manufacturer")
+            self.__model                                        = data.get("model")
+            self.__operatingSystem                              = data.get("operatingSystem")
+            self.__osVersion                                    = data.get("operatingSystemVersion")
+
+            isSupervised                                        = data.get("isManaged")
+            self.__isSupervised                                 = False if isSupervised is None else isSupervised
+
+            self.__lastSyncDateTime                             = data.get("approximateLastSignInDateTime")
+            self.__enrolledDateTime                             = data.get("registrationDateTime")
+            self.userId                                         = data.get("userId")
 
         # Lenovo data
         # Warranty fields (for Lenovo devices only)
-        self.is_in_warranty = None
-        self.country = None
-        self.lenovo_product_webpage_url = None
-        self.product_name = None
-        self.warranty_expiration_date = None
+        self.is_in_warranty                                 = None
+        self.country                                        = None
+        self.lenovo_product_webpage_url                     = None
+        self.product_name                                   = None
+        self.warranty_expiration_date                       = None
         self.number_of_days_left_until_the_warranty_expires = None
 
         # Microsoft Defender values
-        self.__last_ip_address = None
-        self.__exposure_level = None
-        self.__last_external_ip_address = None
+        self.__last_ip_address                              = None
+        self.__exposure_level                               = None
+        self.__last_external_ip_address                     = None
 
         # TOPdesk data (computed, not fetched)
-        self.__device_type                          = OSClassifier.get_device_type(self.__operatingSystem)
-        self.topdesk_asset_id                       = f"{self.__device_type.value}-{self.azureADDeviceId}"
+        self.__device_type, self.topdesk_asset_id = TOPdeskAsset.generate_topdesk_asset_data(
+            source=self.__source, data=data
+        )
 
     def to_json(self):
-        return {
-            "name":                                     self.topdesk_asset_id,
-            "type_id":                                  OSClassifier.get_device_template(self.__device_type),
-
-            "azure-id":                                 self.azureADDeviceId,
-            "azure-ad-registered":                      self.__azureADRegistered,
-            "compliance-status":                        self.__complianceState,
-            "name-1":                                   self.__deviceName,
-            "enrollment-date":                          self.__enrolledDateTime,
-            "free-storage":                             IntuneDevice.__bytes_to_gb(bytes_value=self.__freeStorageSpaceInBytes),
-            "intune-id":                                self.__id,
-            "encrypted":                                self.__isEncrypted,
-            "imei":                                     self.__imei,
-            "ismanaged":                                self.__isSupervised,
-            "last-check-in":                            self.__lastSyncDateTime,
-            "ownership":                                self.__managedDeviceOwnerType,
-            "management-certificate-expiration-date":   self.__managementCertificateExpirationDate,
-            "manufacturer-1":                           self.manufacturer,
-            "model-1":                                  self.__model,
-            "operating-system":                         self.__operatingSystem,
-            "os-version":                               self.__osVersion,
-            "serial-number":                            self.serialNumber,
-            "subscriber-carrier":                       self.__subscriberCarrier,
-            "total-storage":                            IntuneDevice.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes),
-            "user-id":                                  self.userId,
-
-            # Warranty fields
-            "is-in-warranty": self.is_in_warranty,
-            "country-warranty": self.country,
-            "model-provided-by-the-manufacturer": self.product_name,
-            "warranty-expiration-date": self.warranty_expiration_date,
-            "number-of-days-until-the-warranty-expires": self.number_of_days_left_until_the_warranty_expires,
-            "warranty-url": self.lenovo_product_webpage_url,
-
-            # Microsoft Defender data
-            "exposure-level": self.__exposure_level,
-            "last-ip-address": self.__last_ip_address,
-            "last-external-ip-address": self.__last_external_ip_address
+        # Warranty fields
+        warrant_fields_dict = {
+            "is-in-warranty":                               self.is_in_warranty,
+            "country-warranty":                             self.country,
+            "model-provided-by-the-manufacturer":           self.product_name,
+            "warranty-expiration-date":                     self.warranty_expiration_date,
+            "number-of-days-until-the-warranty-expires":    self.number_of_days_left_until_the_warranty_expires,
+            "warranty-url":                                 self.lenovo_product_webpage_url
         }
 
+        # Microsoft Defender data
+        microsoft_defender_fields_dict = {
+            "exposure-level":                               self.__exposure_level,
+            "last-ip-address":                              self.__last_ip_address,
+            "last-external-ip-address":                     self.__last_external_ip_address
+        }
+
+        if self.__source == DeviceSource.INTUNE:
+            data_dict = {
+                "azure-ad-registered":                          self.__azureADRegistered,
+                "compliance-status":                            self.__complianceState,
+                "free-storage":                                 TOPdeskAsset.__bytes_to_gb(bytes_value=self.__freeStorageSpaceInBytes),
+                "intune-id":                                    self.__id,
+                "encrypted":                                    self.__isEncrypted,
+                "imei":                                         self.__imei,
+                "ownership":                                    self.__managedDeviceOwnerType,
+                "management-certificate-expiration-date":       self.__managementCertificateExpirationDate,
+                "serial-number":                                self.serialNumber,
+                "subscriber-carrier":                           self.__subscriberCarrier,
+                "total-storage":                                TOPdeskAsset.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes)
+            }
+            data_dict = data_dict | microsoft_defender_fields_dict | warrant_fields_dict
+        else:
+            data_dict = {}
+
+        # common fields for both Intune and Azure devices
+        data_dict["azure-id"] = self.azureADDeviceId
+        data_dict["enrollment-date"] = self.__enrolledDateTime
+        data_dict["ismanaged"] = self.__isSupervised
+        data_dict["last-check-in"] = self.__lastSyncDateTime
+        data_dict["manufacturer-1"] = self.manufacturer
+        data_dict["model-1"] = self.__model
+        data_dict["name-1"] = self.__deviceName
+        data_dict["operating-system"] = self.__operatingSystem
+        data_dict["os-version"] = self.__osVersion
+        data_dict["name"] =self.topdesk_asset_id
+        data_dict["type_id"] = OSClassifier.get_device_template(self.__device_type)
+        data_dict["user-id"] = self.userId
+
+        return data_dict
+
     def requiresUpdate(self, target: dict) -> bool:
-        asset_id = getattr(self, "topdesk_asset_id", None) or target.get("asset-id")  # adapt to your naming
+        asset_id = getattr(self, "topdesk_asset_id", None)
 
-        checks = [
-            FieldCheck("azureADDeviceId / azure-id",
-                       lambda: self.azureADDeviceId,
-                       lambda: target.get("azure-id")),
+        azure_checks = [
+            # None at the moment
+        ]
 
+        intune_checks = [
             FieldCheck("azureADRegistered / azure-ad-registered",
                        lambda: self.__azureADRegistered,
                        lambda: target.get("azure-ad-registered")),
@@ -161,15 +207,6 @@ class IntuneDevice:
             FieldCheck("complianceState / compliance-status",
                        lambda: self.__complianceState,
                        lambda: target.get("compliance-status")),
-
-            FieldCheck("deviceName / name-1",
-                       lambda: self.__deviceName,
-                       lambda: target.get("name-1")),
-
-            FieldCheck("enrolledDateTime / enrollment-date",
-                       lambda: self.__enrolledDateTime,
-                       lambda: target.get("enrollment-date"),
-                       normalize=self.__normalize_date),
 
             FieldCheck("freeStorageSpaceInBytes(GB) / free-storage",
                        lambda: self.__bytes_to_gb(self.__freeStorageSpaceInBytes),
@@ -187,15 +224,6 @@ class IntuneDevice:
                        lambda: self.__imei,
                        lambda: target.get("imei")),
 
-            FieldCheck("isSupervised / ismanaged",
-                       lambda: self.__isSupervised,
-                       lambda: target.get("ismanaged")),
-
-            FieldCheck("lastSyncDateTime / last-check-in",
-                       lambda: self.__lastSyncDateTime,
-                       lambda: target.get("last-check-in"),
-                       normalize=self.__normalize_date),
-
             FieldCheck("ownership / ownership",
                        lambda: self.__managedDeviceOwnerType,
                        lambda: target.get("ownership")),
@@ -204,22 +232,6 @@ class IntuneDevice:
                        lambda: self.__managementCertificateExpirationDate,
                        lambda: target.get("management-certificate-expiration-date"),
                        normalize=self.__normalize_date),
-
-            FieldCheck("manufacturer / manufacturer-1",
-                       lambda: self.manufacturer,
-                       lambda: target.get("manufacturer-1")),
-
-            FieldCheck("model / model-1",
-                       lambda: self.__model,
-                       lambda: target.get("model-1")),
-
-            FieldCheck("operatingSystem / operating-system",
-                       lambda: self.__operatingSystem,
-                       lambda: target.get("operating-system")),
-
-            FieldCheck("osVersion / os-version",
-                       lambda: self.__osVersion,
-                       lambda: target.get("os-version")),
 
             FieldCheck("serialNumber / serial-number",
                        lambda: self.serialNumber,
@@ -232,11 +244,24 @@ class IntuneDevice:
             FieldCheck("totalStorageSpaceInBytes(GB) / total-storage",
                        lambda: self.__bytes_to_gb(self.__totalStorageSpaceInBytes),
                        lambda: target.get("total-storage")),
+        ]
 
-            FieldCheck("userId / user-id",
-                       lambda: self.userId,
-                       lambda: target.get("user-id")),
+        microsoft_defender_checks = [
+            # Microsoft Defender
+            FieldCheck("exposure_level / exposure-level",
+                       lambda: self.__exposure_level,
+                       lambda: target.get("exposure-level")),
 
+            FieldCheck("last_ip_address / last-ip-address",
+                       lambda: self.__last_ip_address,
+                       lambda: target.get("last-ip-address")),
+
+            FieldCheck("last_external_ip_address / last-external-ip-address",
+                       lambda: self.__last_external_ip_address,
+                       lambda: target.get("last-external-ip-address")),
+        ]
+
+        lenovo_checks = [
             # Lenovo
             FieldCheck("is_in_warranty / is-in-warranty",
                        lambda: self.is_in_warranty,
@@ -261,21 +286,63 @@ class IntuneDevice:
 
             FieldCheck("lenovo_url / warranty-url",
                        lambda: self.lenovo_product_webpage_url,
-                       lambda: target.get("warranty-url")),
-
-            # Microsoft Defender
-            FieldCheck("exposure_level / exposure-level",
-                       lambda: self.__exposure_level,
-                       lambda: target.get("exposure-level")),
-
-            FieldCheck("last_ip_address / last-ip-address",
-                       lambda: self.__last_ip_address,
-                       lambda: target.get("last-ip-address")),
-
-            FieldCheck("last_external_ip_address / last-external-ip-address",
-                       lambda: self.__last_external_ip_address,
-                       lambda: target.get("last-external-ip-address")),
+                       lambda: target.get("warranty-url"))
         ]
+
+        checks = [
+            FieldCheck("azureADDeviceId / azure-id",
+                       lambda: self.azureADDeviceId,
+                       lambda: target.get("azure-id")),
+
+            FieldCheck("deviceName / name-1",
+                       lambda: self.__deviceName,
+                       lambda: target.get("name-1")),
+
+            FieldCheck("enrolledDateTime / enrollment-date",
+                       lambda: self.__enrolledDateTime,
+                       lambda: target.get("enrollment-date"),
+                       normalize=self.__normalize_date),
+
+            FieldCheck("isSupervised / ismanaged",
+                       lambda: self.__isSupervised,
+                       lambda: target.get("ismanaged")),
+
+            FieldCheck("lastSyncDateTime / last-check-in",
+                       lambda: self.__lastSyncDateTime,
+                       lambda: target.get("last-check-in"),
+                       normalize=self.__normalize_date),
+
+            FieldCheck("manufacturer / manufacturer-1",
+                       lambda: self.manufacturer,
+                       lambda: target.get("manufacturer-1")),
+
+            FieldCheck("model / model-1",
+                       lambda: self.__model,
+                       lambda: target.get("model-1")),
+
+            FieldCheck("operatingSystem / operating-system",
+                       lambda: self.__operatingSystem,
+                       lambda: target.get("operating-system")),
+
+            FieldCheck("osVersion / os-version",
+                       lambda: self.__osVersion,
+                       lambda: target.get("os-version")),
+
+            FieldCheck("userId / user-id",
+                       lambda: self.userId,
+                       lambda: target.get("user-id"))
+        ]
+
+        if self.__source == DeviceSource.INTUNE:
+            checks.extend(chain(
+                intune_checks,
+                lenovo_checks,
+                microsoft_defender_checks
+            ))
+        else: # we are checking azure devices
+            checks.extend(chain(
+                azure_checks
+            ))
 
         mismatches: list[tuple[str, Any, Any]] = []
 
@@ -349,8 +416,24 @@ class IntuneDevice:
         self.__last_external_ip_address = data.get("lastExternalIpAddress")
 
     @staticmethod
-    def get_fields():
-        return ",".join(IntuneDevice({}).to_json().keys())
+    def generate_topdesk_asset_data(source: DeviceSource, data: dict):
+        if source == DeviceSource.INTUNE:
+            azure_key = "azureADDeviceId"
+        else:  # it is an azure device
+            azure_key = "deviceId"
+
+        operating_system = data.get("operatingSystem")  # this one is the same for both Azure and Intune
+        azure_id = data.get(azure_key)
+
+        # TOPdesk data (computed, not fetched)
+        device_type = OSClassifier.get_device_type(operating_system)
+        topdesk_asset_id = f"{device_type.value}-{azure_id}"
+
+        return device_type, topdesk_asset_id
+
+    @staticmethod
+    def get_fields(source_type: DeviceSource):
+        return ",".join(TOPdeskAsset(data={}, source=source_type).to_json().keys())
 
     # Internal ---------------------------------------------------------------------------------------------------------
 
@@ -403,8 +486,32 @@ class IntuneDevice:
 ########################################################################################################################
 
 class MicrosoftGraphAPI:
+    graph_scope_url = 'https://graph.microsoft.com/.default'
+    securitycenter_scope_url = 'https://api.securitycenter.microsoft.com/.default'
+
     @staticmethod
-    def get_access_token(scope: str):
+    def get_security_center_access_token():
+        return MicrosoftGraphAPI.__get_access_token(scope=MicrosoftGraphAPI.securitycenter_scope_url)
+
+    @staticmethod
+    def get_graph_access_token():
+        return MicrosoftGraphAPI.__get_access_token(scope=MicrosoftGraphAPI.graph_scope_url)
+
+    @staticmethod
+    def get_devices_from_page(page_url, access_token):
+        response = requests.get(
+            url=page_url,
+            headers={
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json'
+            },
+        )
+        if 200 <= response.status_code < 300:
+            return response.json().get('value'), response.json().get('@odata.nextLink')
+        else:
+            raise ValueError(f"Error {response.status_code}: {response.text}")
+
+    def __get_access_token(scope: str):
         response = requests.post(
             url=f"https://login.microsoftonline.com/{Config.tenant_id}/oauth2/v2.0/token",
             headers={
@@ -449,7 +556,7 @@ class TOPdeskAPI:
 
     # Create -----------------------------------------------------------------------------------------------------------
     @staticmethod
-    def create_topdesk_asset(asset: IntuneDevice):
+    def create_topdesk_asset(asset: TOPdeskAsset):
         response = requests.post(
             url=f"https://dlfseeds.topdesk.net/tas/api/assetmgmt/assets",
             auth=(Config.topdesk_username, Config.topdesk_password),
@@ -566,7 +673,7 @@ class TOPdeskAPI:
         return socket.gethostbyname(hostname)
 
     @staticmethod
-    def update_topdesk_asset(asset_id, device: IntuneDevice, max_attempts=5):
+    def update_topdesk_asset(asset_id, device: TOPdeskAsset, max_attempts=5):
         url = f"https://{TOPdeskAPI.__host}/tas/api/assetmgmt/assets/{asset_id}"
 
         for attempt in range(1, max_attempts + 1):
@@ -754,23 +861,61 @@ class IntuneAPI:
     # Microsoft Graph Endpoints ----------------------------------------------------------------------------------------
     @staticmethod
     def get_devices_from_page(page_url):
-        response = requests.get(
-            url=page_url,
-            headers={
-                'Authorization': f'Bearer {IntuneAPI.__access_token}',
-                'Content-Type': 'application/json'
-            },
-        )
-        if 200 <= response.status_code < 300:
-            return response.json().get('value'), response.json().get('@odata.nextLink')
-        else:
-            raise ValueError(f"Error {response.status_code}: {response.text}")
+        return MicrosoftGraphAPI.get_devices_from_page(page_url, IntuneAPI.__access_token)
 
     # Access token -----------------------------------------------------------------------------------------------------
     @staticmethod
     def get_access_token():
-        IntuneAPI.__access_token = MicrosoftGraphAPI.get_access_token(
-            scope='https://graph.microsoft.com/.default')
+        IntuneAPI.__access_token = MicrosoftGraphAPI.get_graph_access_token()
+
+########################################################################################################################
+
+class AzureAPI:
+    # Quick access variables -------------------------------------------------------------------------------------------
+    __access_token = None
+
+    # Microsoft Graph Endpoints ----------------------------------------------------------------------------------------
+    @staticmethod
+    def get_devices_from_page(page_url):
+        return MicrosoftGraphAPI.get_devices_from_page(page_url, AzureAPI.__access_token)
+
+    @staticmethod
+    def batch_get_registered_users(device_ids):
+        url = "https://graph.microsoft.com/v1.0/$batch"
+        headers = {
+            "Authorization": f"Bearer {AzureAPI.__access_token}",
+            "Content-Type": "application/json"
+        }
+
+        requests_payload = [
+            {
+                "id": device_id,
+                "method": "GET",
+                "url": f"/devices/{device_id}/registeredUsers"
+            }
+            for device_id in device_ids
+        ]
+
+        all_results = {}
+        for i in range(0, len(requests_payload), 20):
+            chunk = requests_payload[i:i + 20]
+            response = requests.post(url, headers=headers, json={"requests": chunk})
+            data = response.json()
+
+            for item in data.get("responses", []):
+                dev_id = item.get("id")
+                if item["status"] == 200:
+                    users = item["body"].get("value", [])
+                    user_id = users[0].get("id") if users else None
+                    all_results[dev_id] = user_id
+                else:
+                    all_results[dev_id] = None
+        return all_results
+
+    # Access token -----------------------------------------------------------------------------------------------------
+    @staticmethod
+    def get_access_token():
+        AzureAPI.__access_token = MicrosoftGraphAPI.get_graph_access_token()
 
 ########################################################################################################################
 
@@ -820,81 +965,81 @@ class TOPdesk:
 
     # Public -----------------------------------------------------------------------------------------------------------
     @staticmethod
-    def create_topdesk_assets(current_page_devices):
+    def create_topdesk_assets(current_page_devices, source_type: DeviceSource):
         # get all ids of active devices from TOPdesk
         topdesk_assets_by_name_and_id_dictionary = TOPdesk.__get_topdesk_assets_as_asset_id_and_object_id_dictionary().keys()
 
         # create a copy, do not remove items while iterating the array
         current_page_devices_copy = current_page_devices.copy()
 
-        intune_devices_to_be_created = []
+        devices_to_be_created = []
 
         # for each device in the current page, create an IntuneDevice object
         # it automatically generates what would be the TOPdesk Asset ID
         for device in current_page_devices_copy:
-            intune_device = IntuneDevice(device)
+            local_topdesk_device = TOPdeskAsset(source=source_type, data=device)
 
             # if the IntuneDevice has an Asset ID that is not present in TOPdesk yet
-            if intune_device.topdesk_asset_id not in topdesk_assets_by_name_and_id_dictionary:
+            if local_topdesk_device.topdesk_asset_id not in topdesk_assets_by_name_and_id_dictionary:
                 # we add it to the list of devices that need to be created
-                intune_devices_to_be_created.append(intune_device)
+                devices_to_be_created.append(local_topdesk_device)
 
                 # we've handled it, so it does not need to be checked for updates
                 current_page_devices.remove(device)
+        if source_type == DeviceSource.INTUNE:
+            TOPdesk.__get_Lenovo_warranties(devices_to_be_created)
+            TOPdesk.__attach_Microsoft_Defender_data(devices_to_be_created)
 
-        TOPdesk.__get_Lenovo_warranties(intune_devices_to_be_created)
-        TOPdesk.__attach_Microsoft_Defender_data(intune_devices_to_be_created)
-
-        if len(intune_devices_to_be_created) > 0:
-            print(f"Creating {len(intune_devices_to_be_created)} assets: {[asset.topdesk_asset_id for asset in intune_devices_to_be_created]}")
+        if len(devices_to_be_created) > 0:
+            print(f"Creating {len(devices_to_be_created)} assets: {[asset.topdesk_asset_id for asset in devices_to_be_created]}")
 
         # for each intune device that needs to be created
-        for intune_device in intune_devices_to_be_created:
+        for local_topdesk_device in devices_to_be_created:
             # create it and save the response - linking to an user requires the new asset ID
-            topdesk_asset = TOPdeskAPI.create_topdesk_asset(intune_device)
+            remote_topdesk_asset = TOPdeskAPI.create_topdesk_asset(local_topdesk_device)
             # assign the user to it, if any
-            TOPdesk.__assign_user(topdesk_asset)
+            TOPdesk.__assign_user(remote_topdesk_asset)
 
     @staticmethod
-    def update_topdesk_assets(current_page_devices):
-        intune_devices = []
+    def update_topdesk_assets(current_page_devices, source_type: DeviceSource):
+        local_devices = []
 
         # create the IntuneDevice instance for each fetched Intune device
         for device in current_page_devices:
-            intune_devices.append(IntuneDevice(device))
+            local_devices.append(TOPdeskAsset(source=source_type, data=device))
 
         # fetch Lenovo data
-        TOPdesk.__get_Lenovo_warranties(intune_devices)
-        TOPdesk.__attach_Microsoft_Defender_data(intune_devices)
+        TOPdesk.__get_Lenovo_warranties(local_devices)
+        TOPdesk.__attach_Microsoft_Defender_data(local_devices)
 
         # create a quick access dictionary for intune devices via their topdesk asset id
-        intune_devices_by_topdesk_asset_id = {
-            device.topdesk_asset_id: device for device in intune_devices
+        local_devices_by_topdesk_asset_id_dictionary = {
+            device.topdesk_asset_id: device for device in local_devices
         }
 
         # get the topdesk assets for each of the above Intune device
-        devices_as_topdesk_assets = TOPdesk.__get_topdesk_assets(intune_devices_by_topdesk_asset_id.keys())
+        devices_as_topdesk_assets = TOPdesk.__get_topdesk_assets(local_devices_by_topdesk_asset_id_dictionary.keys(), source_type=source_type)
 
         # compare the fetched Intune device data with the TOPdesk value
         # if they match, do not update
         # otherwise, send update to TOPdesk
         for asset_ID in devices_as_topdesk_assets.keys():
-            intune_device = intune_devices_by_topdesk_asset_id.get(asset_ID)
-            topdesk_asset = devices_as_topdesk_assets.get(asset_ID)
+            local_device = local_devices_by_topdesk_asset_id_dictionary.get(asset_ID)
+            remote_topdesk_asset = devices_as_topdesk_assets.get(asset_ID)
 
-            if intune_device.requiresUpdate(topdesk_asset):
+            if local_device.requiresUpdate(remote_topdesk_asset):
                 # first, unarchive it if it is archived
-                if topdesk_asset.get('archived'):
-                    TOPdeskAPI.unarchive_asset(topdesk_asset.get('unid'))
+                if remote_topdesk_asset.get('archived'):
+                    TOPdeskAPI.unarchive_asset(remote_topdesk_asset.get('unid'))
 
                 # then update
-                topdesk_asset = TOPdeskAPI.update_topdesk_asset(
-                    asset_id=topdesk_asset.get('unid'),
-                    device=intune_device
+                remote_topdesk_asset = TOPdeskAPI.update_topdesk_asset(
+                    asset_id=remote_topdesk_asset.get('unid'),
+                    device=local_device
                 )
 
                 # finally, assign the user to it, if any
-                TOPdesk.__assign_user(topdesk_asset)
+                TOPdesk.__assign_user(remote_topdesk_asset)
 
     @staticmethod
     def remove_device_assets_except(exceptions):
@@ -929,6 +1074,8 @@ class TOPdesk:
 
     @staticmethod
     def get_Microsoft_Defender_devices():
+        print("Fetching Microsoft Defender Devices")
+
         MicrosoftDefenderAPI.get_access_token()
         microsoft_defender_devices = MicrosoftDefenderAPI.get_devices()
 
@@ -948,24 +1095,25 @@ class TOPdesk:
                 device.add_microsoft_defender_data(data)
 
     @staticmethod
-    def __get_Lenovo_warranties(intune_devices):
-        if len(intune_devices) == 0:
+    def __get_Lenovo_warranties(devices):
+        if len(devices) == 0:
             return
 
-        lenovo_intune_devices_by_serial_number_dictionary = dict()
+        lenovo_devices_by_serial_number_dictionary = dict()
 
-        for device in intune_devices:
+        for device in devices:
             # quick access for each device via its serial number, if it is a Lenovo device
-            if device.manufacturer == "LENOVO":
-                lenovo_intune_devices_by_serial_number_dictionary[device.serialNumber] = device
+            if hasattr(device, "manufacturer") and device.manufacturer == "LENOVO":
+                if hasattr(device, "serialNumber"):
+                    lenovo_devices_by_serial_number_dictionary[device.serialNumber] = device
 
-        if len(lenovo_intune_devices_by_serial_number_dictionary.keys()) == 0:
+        if len(lenovo_devices_by_serial_number_dictionary.keys()) == 0:
             return
 
-        print(f"Searching for Lenovo warranties for the following devices: {lenovo_intune_devices_by_serial_number_dictionary.keys()}")
+        print(f"Searching for Lenovo warranties for the following devices: {lenovo_devices_by_serial_number_dictionary.keys()}")
 
         # generate the list of serial numbers as "Serial=...&Serial=..."
-        params = "Serial=" + "&Serial=".join(lenovo_intune_devices_by_serial_number_dictionary.keys())
+        params = "Serial=" + "&Serial=".join(lenovo_devices_by_serial_number_dictionary.keys())
         # fetch Lenovo warranties and stuff
         warranties = LenovoAPI.get_lenovo_warranties(params)
 
@@ -982,14 +1130,14 @@ class TOPdesk:
         # attach the warranties
         for warranty in warranties:
             serial_number = warranty.get('Serial')
-            intune_device = lenovo_intune_devices_by_serial_number_dictionary[serial_number]
+            device = lenovo_devices_by_serial_number_dictionary[serial_number]
 
             error_message = warranty.get('ErrorMessage')
             if error_message is not None and error_message != "":
-                print(f"Device with TOPdesk asset ID: {intune_device.topdesk_asset_id} and serial number: {serial_number} cannot be found in Lenovo warranty database: {error_message}!")
+                print(f"Device with TOPdesk asset ID: {device.topdesk_asset_id} and serial number: {serial_number} cannot be found in Lenovo warranty database: {error_message}!")
                 continue
 
-            intune_device.add_warranty(warranty)
+            device.add_warranty(warranty)
 
     @staticmethod
     def __assign_user(topdesk_asset):
@@ -1052,7 +1200,7 @@ class TOPdesk:
         return archived_topdesk_assets
 
     @staticmethod
-    def __get_topdesk_assets(ids):
+    def __get_topdesk_assets(ids, source_type: DeviceSource):
         topdesk_assets = {}
 
         page_start = 0
@@ -1062,7 +1210,7 @@ class TOPdesk:
                 page_start=page_start,
                 page_size=page_size,
                 names=ids,
-                fields=IntuneDevice.get_fields()
+                fields=TOPdeskAsset.get_fields(source_type=source_type)
             ).get("dataSet")
 
             for asset in current_page_assets:
@@ -1097,51 +1245,116 @@ class TOPdesk:
 
 ########################################################################################################################
 
+class GraphDeviceProcessor:
+    API = None
+    SOURCE = None
+    INITIAL_URL = None
+    FETCH_ALL_FLAG = None
+    PAGE_LIMIT_SETTING = "NUMBER_OF_DEVICES_PAGES_ALLOWED_FOR_FETCHING"
+    DEVICE_ID_FIELD_FOR_LOGGING = "id"
+
+    @classmethod
+    def process_devices(cls):
+        cls.API.get_access_token()
+
+        print(f"Fetching {cls.SOURCE.name} Devices")
+        next_page = cls.INITIAL_URL
+
+        topdesk_assets_that_must_not_be_deleted = []
+        page_counter = 1
+
+        while next_page:
+            current_page_devices, next_page = cls.API.get_devices_from_page(next_page)
+
+            print("Page:", page_counter)
+            if not getattr(Settings, cls.FETCH_ALL_FLAG):
+                if getattr(Settings, cls.PAGE_LIMIT_SETTING) == page_counter:
+                    next_page = None
+            page_counter += 1
+
+            for device in current_page_devices:
+                _, idx = TOPdeskAsset.generate_topdesk_asset_data(
+                    source=cls.SOURCE,
+                    data=device
+                )
+                topdesk_assets_that_must_not_be_deleted.append(idx)
+
+            cls.enrich_devices(current_page_devices)
+
+            print(
+                f"Found the following {len(current_page_devices)} devices: "
+                f"{[device.get(cls.DEVICE_ID_FIELD_FOR_LOGGING) for device in current_page_devices]}"
+            )
+            TOPdesk.create_topdesk_assets(current_page_devices, source_type=cls.SOURCE)
+
+            print(
+                f"Check the following {len(current_page_devices)} devices for any updates: "
+                f"{[device.get(cls.DEVICE_ID_FIELD_FOR_LOGGING) for device in current_page_devices]}"
+            )
+            TOPdesk.update_topdesk_assets(current_page_devices, source_type=cls.SOURCE)
+
+        return topdesk_assets_that_must_not_be_deleted
+
+    @classmethod
+    def enrich_devices(cls, current_page_devices):
+        pass
+
+########################################################################################################################
+
+class Azure(GraphDeviceProcessor):
+    API = AzureAPI
+    SOURCE = DeviceSource.AZURE
+    INITIAL_URL = (
+        f"https://graph.microsoft.com/v1.0/devices"
+        f"?$top={Settings.DEVICES_PER_FETCHED_PAGE}"
+    )
+    FETCH_ALL_FLAG = "FETCH_All_AZURE_DEVICES"
+    DEVICE_ID_FIELD_FOR_LOGGING = "deviceId"
+
+    @classmethod
+    def enrich_devices(cls, current_page_devices):
+        device_ids = {device.get("id"): device for device in current_page_devices}
+        users = cls.API.batch_get_registered_users(device_ids)
+
+        for device_id, user in users.items():
+            if device_id in device_ids:
+                device_ids[device_id]["userId"] = user
+
+########################################################################################################################
+
+class Intune(GraphDeviceProcessor):
+    API = IntuneAPI
+    SOURCE = DeviceSource.INTUNE
+    INITIAL_URL = (
+        f"https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+        f"?$top={Settings.DEVICES_PER_FETCHED_PAGE}"
+    )
+    FETCH_ALL_FLAG = "FETCH_All_INTUNE_DEVICES"
+    DEVICE_ID_FIELD_FOR_LOGGING = "id"
+
+########################################################################################################################
+
 # load config - contains ids and credentials for using various APIs
 Config.load()
+topdesk_assets_that_must_not_be_deleted = []
 
 # fetch the Microsoft Defender devices at the start, as it sends all devices, no pagination involved
-print("Fetching Microsoft Defender Devices")
-TOPdesk.get_Microsoft_Defender_devices()
+if Settings.FETCH_MICROSOFT_DEFENDER_DEVICES:
+    TOPdesk.get_Microsoft_Defender_devices()
 
-# fetch the Microsoft Graph API access token - not valid forever
-IntuneAPI.get_access_token()
+# proces the Azure devices
+if Settings.FETCH_AZURE_DEVICES:
+    processed_devices = Azure.process_devices()
+    topdesk_assets_that_must_not_be_deleted.extend(processed_devices)
 
-print("Fetching Intune Devices")
-__intune_url = f"https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$top={Settings.INTUNE_DEVICES_PER_FETCHED_PAGE}"
-next_page = __intune_url
-
-topdesk_assets_that_must_not_be_deleted = []
-page_counter = 1
-
-while next_page:
-    # fetch a page of intune devices, and the url for the next page
-    current_page_devices, next_page = IntuneAPI.get_devices_from_page(next_page)
-
-    # Development Control ----------------------------------------------------------------------------------------------
-    print("Page: ", page_counter)
-    if not Settings.FETCH_All_INTUNE_DEVICES:
-        if Settings.NUMBER_OF_INTUNE_DEVICES_PAGES_ALLOWED_FOR_FETCHING == page_counter:
-            next_page = None
-    page_counter += 1
-    # ----------------------------------------------------------------------------------------------
-
-    # compute and store the topdesk Asset ID of the Intune devices
-    for device in current_page_devices:
-        topdesk_assets_that_must_not_be_deleted.append(IntuneDevice(device).topdesk_asset_id)
-
-    # create new assets if required
-    print(
-        f"Found the following {len(current_page_devices)} devices: {[device.get('id') for device in current_page_devices]}")
-    TOPdesk.create_topdesk_assets(current_page_devices)
-
-    # current_page_devices contains devices that might need to be updated
-    print(
-        f"Check the following {len(current_page_devices)} devices for any updates: {[device.get('id') for device in current_page_devices]}")
-    TOPdesk.update_topdesk_assets(current_page_devices)
+# proces the Intune devices
+if Settings.FETCH_INTUNE_DEVICES:
+    processed_devices = Intune.process_devices()
+    topdesk_assets_that_must_not_be_deleted.extend(processed_devices)
 
 # delete assets in TOPdesk that are not in Intune anymore
 if Settings.DELETE_OUTDATED_TOPDESK_ASSETS:
     TOPdesk.remove_device_assets_except(topdesk_assets_that_must_not_be_deleted)
+
 
 ########################################################################################################################

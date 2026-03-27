@@ -4,6 +4,11 @@ from system.Settings import Settings
 from platforms.Intune import Intune
 from platforms.Azure import Azure
 
+#TODO:
+# - move microsoft defender and lenovo to their own classes
+# - hunt and fix lenovo serials not returning
+###########################################################
+
 # load config - contains ids and credentials for using various APIs
 Config.load()
 topdesk_assets_that_must_not_be_deleted = []
