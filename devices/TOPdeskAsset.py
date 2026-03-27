@@ -42,7 +42,10 @@ class TOPdeskAsset:
             self.__model                                        = data.get("model")
             self.__operatingSystem                              = data.get("operatingSystem")
             self.__osVersion                                    = data.get("operatingSystemVersion")
-            self.__isSupervised                                 = data.get("isManaged")
+
+            isSupervised                                        = data.get("isManaged")
+            self.__isSupervised                                 = False if isSupervised is None else isSupervised
+
             self.__lastSyncDateTime                             = data.get("approximateLastSignInDateTime")
             self.__enrolledDateTime                             = data.get("registrationDateTime")
             self.userId                                         = data.get("userId")
