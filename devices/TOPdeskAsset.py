@@ -86,72 +86,47 @@ class TOPdeskAsset:
 
         if self.__source == DeviceSource.INTUNE:
             data_dict = {
-                "azure-id":                                     self.azureADDeviceId,
                 "azure-ad-registered":                          self.__azureADRegistered,
                 "compliance-status":                            self.__complianceState,
-                "name-1":                                       self.__deviceName,
-                "enrollment-date":                              self.__enrolledDateTime,
                 "free-storage":                                 TOPdeskAsset.__bytes_to_gb(bytes_value=self.__freeStorageSpaceInBytes),
                 "intune-id":                                    self.__id,
                 "encrypted":                                    self.__isEncrypted,
                 "imei":                                         self.__imei,
-                "ismanaged":                                    self.__isSupervised,
-                "last-check-in":                                self.__lastSyncDateTime,
                 "ownership":                                    self.__managedDeviceOwnerType,
                 "management-certificate-expiration-date":       self.__managementCertificateExpirationDate,
-                "manufacturer-1":                               self.manufacturer,
-                "model-1":                                      self.__model,
-                "operating-system":                             self.__operatingSystem,
-                "os-version":                                   self.__osVersion,
                 "serial-number":                                self.serialNumber,
                 "subscriber-carrier":                           self.__subscriberCarrier,
-                "total-storage":                                TOPdeskAsset.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes),
-                "user-id":                                      self.userId,
+                "total-storage":                                TOPdeskAsset.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes)
             }
         else:
-            data_dict = {
-                "azure-id":                                     self.azureADDeviceId,
-                "name-1":                                       self.__deviceName,
-                "manufacturer-1":                               self.manufacturer,
-                "model-1":                                      self.__model,
-                "operating-system":                             self.__operatingSystem,
-                "os-version":                                   self.__osVersion,
-                "ismanaged":                                    self.__isSupervised,
-                "last-check-in":                                self.__lastSyncDateTime,
-                "enrollment-date":                              self.__enrolledDateTime
-            }
+            data_dict = {}
 
+        # common fields for both Intune and Azure devices
+        data_dict["azure-id"] = self.azureADDeviceId
+        data_dict["enrollment-date"] = self.__enrolledDateTime
+        data_dict["ismanaged"] = self.__isSupervised
+        data_dict["last-check-in"] = self.__lastSyncDateTime
+        data_dict["manufacturer-1"] = self.manufacturer
+        data_dict["model-1"] = self.__model
+        data_dict["name-1"] = self.__deviceName
+        data_dict["operating-system"] = self.__operatingSystem
+        data_dict["os-version"] = self.__osVersion
         data_dict["name"] =self.topdesk_asset_id
         data_dict["type_id"] = OSClassifier.get_device_template(self.__device_type)
+        data_dict["user-id"] = self.userId
 
         merged_dict = data_dict | warrant_fields_dict | microsoft_defender_fields_dict
 
         return merged_dict
 
-    @staticmethod
-    def generate_topdesk_asset_data(source: DeviceSource, data: dict):
-        if source == DeviceSource.INTUNE:
-            azure_key = "azureADDeviceId"
-        else: # it is an azure device
-            azure_key = "deviceId"
-
-        operating_system = data.get("operatingSystem") # this one is the same for both Azure and Intune
-        azure_id = data.get(azure_key)
-
-        # TOPdesk data (computed, not fetched)
-        device_type = OSClassifier.get_device_type(operating_system)
-        topdesk_asset_id = f"{device_type.value}-{azure_id}"
-
-        return device_type, topdesk_asset_id
-
     def requiresUpdate(self, target: dict) -> bool:
-        asset_id = getattr(self, "topdesk_asset_id", None) or target.get("asset-id")  # adapt to your naming
+        asset_id = getattr(self, "topdesk_asset_id", None)
 
-        checks = [
-            FieldCheck("azureADDeviceId / azure-id",
-                       lambda: self.azureADDeviceId,
-                       lambda: target.get("azure-id")),
+        azure_checks = [
+            # None at the moment
+        ]
 
+        intune_checks = [
             FieldCheck("azureADRegistered / azure-ad-registered",
                        lambda: self.__azureADRegistered,
                        lambda: target.get("azure-ad-registered")),
@@ -159,15 +134,6 @@ class TOPdeskAsset:
             FieldCheck("complianceState / compliance-status",
                        lambda: self.__complianceState,
                        lambda: target.get("compliance-status")),
-
-            FieldCheck("deviceName / name-1",
-                       lambda: self.__deviceName,
-                       lambda: target.get("name-1")),
-
-            FieldCheck("enrolledDateTime / enrollment-date",
-                       lambda: self.__enrolledDateTime,
-                       lambda: target.get("enrollment-date"),
-                       normalize=self.__normalize_date),
 
             FieldCheck("freeStorageSpaceInBytes(GB) / free-storage",
                        lambda: self.__bytes_to_gb(self.__freeStorageSpaceInBytes),
@@ -185,15 +151,6 @@ class TOPdeskAsset:
                        lambda: self.__imei,
                        lambda: target.get("imei")),
 
-            FieldCheck("isSupervised / ismanaged",
-                       lambda: self.__isSupervised,
-                       lambda: target.get("ismanaged")),
-
-            FieldCheck("lastSyncDateTime / last-check-in",
-                       lambda: self.__lastSyncDateTime,
-                       lambda: target.get("last-check-in"),
-                       normalize=self.__normalize_date),
-
             FieldCheck("ownership / ownership",
                        lambda: self.__managedDeviceOwnerType,
                        lambda: target.get("ownership")),
@@ -201,6 +158,42 @@ class TOPdeskAsset:
             FieldCheck("managementCertExpiry / management-certificate-expiration-date",
                        lambda: self.__managementCertificateExpirationDate,
                        lambda: target.get("management-certificate-expiration-date"),
+                       normalize=self.__normalize_date),
+
+            FieldCheck("serialNumber / serial-number",
+                       lambda: self.serialNumber,
+                       lambda: target.get("serial-number")),
+
+            FieldCheck("subscriberCarrier / subscriber-carrier",
+                       lambda: self.__subscriberCarrier,
+                       lambda: target.get("subscriber-carrier")),
+
+            FieldCheck("totalStorageSpaceInBytes(GB) / total-storage",
+                       lambda: self.__bytes_to_gb(self.__totalStorageSpaceInBytes),
+                       lambda: target.get("total-storage")),
+        ]
+
+        checks = [
+            FieldCheck("azureADDeviceId / azure-id",
+                       lambda: self.azureADDeviceId,
+                       lambda: target.get("azure-id")),
+
+            FieldCheck("deviceName / name-1",
+                       lambda: self.__deviceName,
+                       lambda: target.get("name-1")),
+
+            FieldCheck("enrolledDateTime / enrollment-date",
+                       lambda: self.__enrolledDateTime,
+                       lambda: target.get("enrollment-date"),
+                       normalize=self.__normalize_date),
+
+            FieldCheck("isSupervised / ismanaged",
+                       lambda: self.__isSupervised,
+                       lambda: target.get("ismanaged")),
+
+            FieldCheck("lastSyncDateTime / last-check-in",
+                       lambda: self.__lastSyncDateTime,
+                       lambda: target.get("last-check-in"),
                        normalize=self.__normalize_date),
 
             FieldCheck("manufacturer / manufacturer-1",
@@ -218,18 +211,6 @@ class TOPdeskAsset:
             FieldCheck("osVersion / os-version",
                        lambda: self.__osVersion,
                        lambda: target.get("os-version")),
-
-            FieldCheck("serialNumber / serial-number",
-                       lambda: self.serialNumber,
-                       lambda: target.get("serial-number")),
-
-            FieldCheck("subscriberCarrier / subscriber-carrier",
-                       lambda: self.__subscriberCarrier,
-                       lambda: target.get("subscriber-carrier")),
-
-            FieldCheck("totalStorageSpaceInBytes(GB) / total-storage",
-                       lambda: self.__bytes_to_gb(self.__totalStorageSpaceInBytes),
-                       lambda: target.get("total-storage")),
 
             FieldCheck("userId / user-id",
                        lambda: self.userId,
@@ -274,6 +255,11 @@ class TOPdeskAsset:
                        lambda: self.__last_external_ip_address,
                        lambda: target.get("last-external-ip-address")),
         ]
+
+        if self.__source == DeviceSource.INTUNE:
+            checks.extend(intune_checks)
+        else:
+            checks.extend(azure_checks)
 
         mismatches: list[tuple[str, Any, Any]] = []
 
@@ -347,8 +333,24 @@ class TOPdeskAsset:
         self.__last_external_ip_address = data.get("lastExternalIpAddress")
 
     @staticmethod
-    def get_fields():
-        return ",".join(TOPdeskAsset(data={}).to_json().keys())
+    def generate_topdesk_asset_data(source: DeviceSource, data: dict):
+        if source == DeviceSource.INTUNE:
+            azure_key = "azureADDeviceId"
+        else:  # it is an azure device
+            azure_key = "deviceId"
+
+        operating_system = data.get("operatingSystem")  # this one is the same for both Azure and Intune
+        azure_id = data.get(azure_key)
+
+        # TOPdesk data (computed, not fetched)
+        device_type = OSClassifier.get_device_type(operating_system)
+        topdesk_asset_id = f"{device_type.value}-{azure_id}"
+
+        return device_type, topdesk_asset_id
+
+    @staticmethod
+    def get_fields(source_type: DeviceSource):
+        return ",".join(TOPdeskAsset(data={}, source=source_type).to_json().keys())
 
     # Internal ---------------------------------------------------------------------------------------------------------
 

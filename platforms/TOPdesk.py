@@ -48,44 +48,44 @@ class TOPdesk:
 
     @staticmethod
     def update_topdesk_assets(current_page_devices, source_type: DeviceSource):
-        intune_devices = []
+        local_devices = []
 
         # create the IntuneDevice instance for each fetched Intune device
         for device in current_page_devices:
-            intune_devices.append(TOPdeskAsset(source=source_type, data=device))
+            local_devices.append(TOPdeskAsset(source=source_type, data=device))
 
         # fetch Lenovo data
-        TOPdesk.__get_Lenovo_warranties(intune_devices)
-        TOPdesk.__attach_Microsoft_Defender_data(intune_devices)
+        TOPdesk.__get_Lenovo_warranties(local_devices)
+        TOPdesk.__attach_Microsoft_Defender_data(local_devices)
 
         # create a quick access dictionary for intune devices via their topdesk asset id
-        intune_devices_by_topdesk_asset_id = {
-            device.topdesk_asset_id: device for device in intune_devices
+        local_devices_by_topdesk_asset_id_dictionary = {
+            device.topdesk_asset_id: device for device in local_devices
         }
 
         # get the topdesk assets for each of the above Intune device
-        devices_as_topdesk_assets = TOPdesk.__get_topdesk_assets(intune_devices_by_topdesk_asset_id.keys())
+        devices_as_topdesk_assets = TOPdesk.__get_topdesk_assets(local_devices_by_topdesk_asset_id_dictionary.keys(), source_type=source_type)
 
         # compare the fetched Intune device data with the TOPdesk value
         # if they match, do not update
         # otherwise, send update to TOPdesk
         for asset_ID in devices_as_topdesk_assets.keys():
-            intune_device = intune_devices_by_topdesk_asset_id.get(asset_ID)
-            topdesk_asset = devices_as_topdesk_assets.get(asset_ID)
+            local_device = local_devices_by_topdesk_asset_id_dictionary.get(asset_ID)
+            remote_topdesk_asset = devices_as_topdesk_assets.get(asset_ID)
 
-            if intune_device.requiresUpdate(topdesk_asset):
+            if local_device.requiresUpdate(remote_topdesk_asset):
                 # first, unarchive it if it is archived
-                if topdesk_asset.get('archived'):
-                    TOPdeskAPI.unarchive_asset(topdesk_asset.get('unid'))
+                if remote_topdesk_asset.get('archived'):
+                    TOPdeskAPI.unarchive_asset(remote_topdesk_asset.get('unid'))
 
                 # then update
-                topdesk_asset = TOPdeskAPI.update_topdesk_asset(
-                    asset_id=topdesk_asset.get('unid'),
-                    device=intune_device
+                remote_topdesk_asset = TOPdeskAPI.update_topdesk_asset(
+                    asset_id=remote_topdesk_asset.get('unid'),
+                    device=local_device
                 )
 
                 # finally, assign the user to it, if any
-                TOPdesk.__assign_user(topdesk_asset)
+                TOPdesk.__assign_user(remote_topdesk_asset)
 
     @staticmethod
     def remove_device_assets_except(exceptions):
@@ -246,7 +246,7 @@ class TOPdesk:
         return archived_topdesk_assets
 
     @staticmethod
-    def __get_topdesk_assets(ids):
+    def __get_topdesk_assets(ids, source_type: DeviceSource):
         topdesk_assets = {}
 
         page_start = 0
@@ -256,7 +256,7 @@ class TOPdesk:
                 page_start=page_start,
                 page_size=page_size,
                 names=ids,
-                fields=TOPdeskAsset.get_fields()
+                fields=TOPdeskAsset.get_fields(source_type=source_type)
             ).get("dataSet")
 
             for asset in current_page_assets:

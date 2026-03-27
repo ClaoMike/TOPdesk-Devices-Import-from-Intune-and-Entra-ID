@@ -28,7 +28,7 @@ class Azure:
                     next_page = None
             page_counter += 1
 
-            print(current_page_devices)
+            # print(current_page_devices)
             # ----------------------------------------------------------------------------------------------
 
             # compute and store the topdesk Asset ID of the Intune devices
@@ -39,14 +39,14 @@ class Azure:
             Azure.__attach_azure_users_to_devices(current_page_devices)
 
             # create new assets if required
-            print(
-                f"Found the following {len(current_page_devices)} devices: {[device.get('id') for device in current_page_devices]}")
+            print(f"Found the following {len(current_page_devices)} devices: "
+                  f"{[device.get('deviceId') for device in current_page_devices]}")
             TOPdesk.create_topdesk_assets(current_page_devices, source_type=DeviceSource.AZURE)
 
             # current_page_devices contains devices that might need to be updated
-            # print(
-            #     f"Check the following {len(current_page_devices)} devices for any updates: {[device.get('id') for device in current_page_devices]}")
-            # TOPdesk.update_topdesk_assets(current_page_devices, source_type=DeviceSource.AZURE)
+            print(f"Check the following {len(current_page_devices)} devices for any updates: "
+                  f"{[device.get('deviceId') for device in current_page_devices]}")
+            TOPdesk.update_topdesk_assets(current_page_devices, source_type=DeviceSource.AZURE)
 
         return topdesk_assets_that_must_not_be_deleted
 
