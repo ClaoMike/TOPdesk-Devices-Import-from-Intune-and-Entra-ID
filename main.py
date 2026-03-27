@@ -10,6 +10,7 @@ from platforms.Azure import Azure
 
 # load config - contains ids and credentials for using various APIs
 Config.load()
+topdesk_assets_that_must_not_be_deleted = []
 
 # fetch the Microsoft Defender devices at the start, as it sends all devices, no pagination involved
 if Settings.FETCH_MICROSOFT_DEFENDER_DEVICES:
@@ -17,11 +18,13 @@ if Settings.FETCH_MICROSOFT_DEFENDER_DEVICES:
 
 # proces the Intune devices
 if Settings.FETCH_INTUNE_DEVICES:
-    topdesk_assets_that_must_not_be_deleted = Intune.process_devices()
+    processed_devices = Intune.process_devices()
+    topdesk_assets_that_must_not_be_deleted.extend(processed_devices)
 
 # proces the Azure devices
 if Settings.FETCH_AZURE_DEVICES:
-    Azure.process_devices()
+    processed_devices = Azure.process_devices()
+    topdesk_assets_that_must_not_be_deleted.extend(processed_devices)
 
 # delete assets in TOPdesk that are not in Intune anymore
 if Settings.DELETE_OUTDATED_TOPDESK_ASSETS:

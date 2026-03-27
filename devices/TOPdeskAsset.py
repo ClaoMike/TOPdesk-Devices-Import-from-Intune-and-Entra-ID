@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from devices.FieldCheck import FieldCheck
 from typing import Any
 from devices.DeviceSource import DeviceSource
+from itertools import chain
 
 class TOPdeskAsset:
     def __init__(self, source: DeviceSource, data: dict):
@@ -176,6 +177,49 @@ class TOPdeskAsset:
                        lambda: target.get("total-storage")),
         ]
 
+        microsoft_defender_checks = [
+            # Microsoft Defender
+            FieldCheck("exposure_level / exposure-level",
+                       lambda: self.__exposure_level,
+                       lambda: target.get("exposure-level")),
+
+            FieldCheck("last_ip_address / last-ip-address",
+                       lambda: self.__last_ip_address,
+                       lambda: target.get("last-ip-address")),
+
+            FieldCheck("last_external_ip_address / last-external-ip-address",
+                       lambda: self.__last_external_ip_address,
+                       lambda: target.get("last-external-ip-address")),
+        ]
+
+        lenovo_checks = [
+            # Lenovo
+            FieldCheck("is_in_warranty / is-in-warranty",
+                       lambda: self.is_in_warranty,
+                       lambda: target.get("is-in-warranty")),
+
+            FieldCheck("country / country-warranty",
+                       lambda: self.country,
+                       lambda: target.get("country-warranty")),
+
+            FieldCheck("product_name / model-provided-by-the-manufacturer",
+                       lambda: self.product_name,
+                       lambda: target.get("model-provided-by-the-manufacturer")),
+
+            FieldCheck("warranty_expiration_date / warranty-expiration-date",
+                       lambda: self.warranty_expiration_date,
+                       lambda: target.get("warranty-expiration-date"),
+                       normalize=self.__normalize_date),
+
+            FieldCheck("days_left_warranty / number-of-days-until-the-warranty-expires",
+                       lambda: self.number_of_days_left_until_the_warranty_expires,
+                       lambda: target.get("number-of-days-until-the-warranty-expires")),
+
+            FieldCheck("lenovo_url / warranty-url",
+                       lambda: self.lenovo_product_webpage_url,
+                       lambda: target.get("warranty-url"))
+        ]
+
         checks = [
             FieldCheck("azureADDeviceId / azure-id",
                        lambda: self.azureADDeviceId,
@@ -217,52 +261,19 @@ class TOPdeskAsset:
 
             FieldCheck("userId / user-id",
                        lambda: self.userId,
-                       lambda: target.get("user-id")),
-
-            # Lenovo
-            FieldCheck("is_in_warranty / is-in-warranty",
-                       lambda: self.is_in_warranty,
-                       lambda: target.get("is-in-warranty")),
-
-            FieldCheck("country / country-warranty",
-                       lambda: self.country,
-                       lambda: target.get("country-warranty")),
-
-            FieldCheck("product_name / model-provided-by-the-manufacturer",
-                       lambda: self.product_name,
-                       lambda: target.get("model-provided-by-the-manufacturer")),
-
-            FieldCheck("warranty_expiration_date / warranty-expiration-date",
-                       lambda: self.warranty_expiration_date,
-                       lambda: target.get("warranty-expiration-date"),
-                       normalize=self.__normalize_date),
-
-            FieldCheck("days_left_warranty / number-of-days-until-the-warranty-expires",
-                       lambda: self.number_of_days_left_until_the_warranty_expires,
-                       lambda: target.get("number-of-days-until-the-warranty-expires")),
-
-            FieldCheck("lenovo_url / warranty-url",
-                       lambda: self.lenovo_product_webpage_url,
-                       lambda: target.get("warranty-url")),
-
-            # Microsoft Defender
-            FieldCheck("exposure_level / exposure-level",
-                       lambda: self.__exposure_level,
-                       lambda: target.get("exposure-level")),
-
-            FieldCheck("last_ip_address / last-ip-address",
-                       lambda: self.__last_ip_address,
-                       lambda: target.get("last-ip-address")),
-
-            FieldCheck("last_external_ip_address / last-external-ip-address",
-                       lambda: self.__last_external_ip_address,
-                       lambda: target.get("last-external-ip-address")),
+                       lambda: target.get("user-id"))
         ]
 
         if self.__source == DeviceSource.INTUNE:
-            checks.extend(intune_checks)
-        else:
-            checks.extend(azure_checks)
+            checks.extend(chain(
+                intune_checks,
+                lenovo_checks,
+                microsoft_defender_checks
+            ))
+        else: # we are checking azure devices
+            checks.extend(chain(
+                azure_checks
+            ))
 
         mismatches: list[tuple[str, Any, Any]] = []
 
