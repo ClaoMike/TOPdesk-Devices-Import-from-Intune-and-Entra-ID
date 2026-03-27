@@ -4,10 +4,6 @@ from system.Settings import Settings
 from platforms.Intune import Intune
 from platforms.Azure import Azure
 
-# TODO #################################################################################################################
-# TODO 2. Import Azure Entra ID devices ################################################################################
-# TODO #################################################################################################################
-
 # load config - contains ids and credentials for using various APIs
 Config.load()
 topdesk_assets_that_must_not_be_deleted = []
@@ -16,14 +12,14 @@ topdesk_assets_that_must_not_be_deleted = []
 if Settings.FETCH_MICROSOFT_DEFENDER_DEVICES:
     TOPdesk.get_Microsoft_Defender_devices()
 
-# proces the Intune devices
-if Settings.FETCH_INTUNE_DEVICES:
-    processed_devices = Intune.process_devices()
-    topdesk_assets_that_must_not_be_deleted.extend(processed_devices)
-
 # proces the Azure devices
 if Settings.FETCH_AZURE_DEVICES:
     processed_devices = Azure.process_devices()
+    topdesk_assets_that_must_not_be_deleted.extend(processed_devices)
+
+# proces the Intune devices
+if Settings.FETCH_INTUNE_DEVICES:
+    processed_devices = Intune.process_devices()
     topdesk_assets_that_must_not_be_deleted.extend(processed_devices)
 
 # delete assets in TOPdesk that are not in Intune anymore

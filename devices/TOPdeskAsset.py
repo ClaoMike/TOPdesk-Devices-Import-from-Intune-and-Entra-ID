@@ -102,6 +102,7 @@ class TOPdeskAsset:
                 "subscriber-carrier":                           self.__subscriberCarrier,
                 "total-storage":                                TOPdeskAsset.__bytes_to_gb(bytes_value=self.__totalStorageSpaceInBytes)
             }
+            data_dict = data_dict | microsoft_defender_fields_dict | warrant_fields_dict
         else:
             data_dict = {}
 
@@ -119,9 +120,7 @@ class TOPdeskAsset:
         data_dict["type_id"] = OSClassifier.get_device_template(self.__device_type)
         data_dict["user-id"] = self.userId
 
-        merged_dict = data_dict | warrant_fields_dict | microsoft_defender_fields_dict
-
-        return merged_dict
+        return data_dict
 
     def requiresUpdate(self, target: dict) -> bool:
         asset_id = getattr(self, "topdesk_asset_id", None)

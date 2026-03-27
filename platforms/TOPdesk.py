@@ -32,9 +32,9 @@ class TOPdesk:
 
                 # we've handled it, so it does not need to be checked for updates
                 current_page_devices.remove(device)
-
-        TOPdesk.__get_Lenovo_warranties(devices_to_be_created)
-        TOPdesk.__attach_Microsoft_Defender_data(devices_to_be_created)
+        if source_type == DeviceSource.INTUNE:
+            TOPdesk.__get_Lenovo_warranties(devices_to_be_created)
+            TOPdesk.__attach_Microsoft_Defender_data(devices_to_be_created)
 
         if len(devices_to_be_created) > 0:
             print(f"Creating {len(devices_to_be_created)} assets: {[asset.topdesk_asset_id for asset in devices_to_be_created]}")
