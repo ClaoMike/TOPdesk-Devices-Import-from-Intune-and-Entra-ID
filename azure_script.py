@@ -849,8 +849,7 @@ class MicrosoftDefenderAPI:
 
     @staticmethod
     def get_access_token():
-        MicrosoftDefenderAPI.__access_token = MicrosoftGraphAPI.get_access_token(
-            scope='https://api.securitycenter.microsoft.com/.default')
+        MicrosoftDefenderAPI.__access_token = MicrosoftGraphAPI.get_security_center_access_token()
 
 ########################################################################################################################
 
