@@ -33,7 +33,7 @@ class TOPdesk:
                 # we've handled it, so it does not need to be checked for updates
                 current_page_devices.remove(device)
         if source_type == DeviceSource.INTUNE:
-            TOPdesk.__get_Lenovo_warranties(devices_to_be_created)
+            TOPdesk.__attach_Lenovo_warranties(devices_to_be_created)
             TOPdesk.__attach_Microsoft_Defender_data(devices_to_be_created)
 
         if len(devices_to_be_created) > 0:
@@ -55,7 +55,7 @@ class TOPdesk:
             local_devices.append(TOPdeskAsset(source=source_type, data=device))
 
         # fetch Lenovo data
-        TOPdesk.__get_Lenovo_warranties(local_devices)
+        TOPdesk.__attach_Lenovo_warranties(local_devices)
         TOPdesk.__attach_Microsoft_Defender_data(local_devices)
 
         # create a quick access dictionary for intune devices via their topdesk asset id
@@ -141,10 +141,7 @@ class TOPdesk:
                 device.add_microsoft_defender_data(data)
 
     @staticmethod
-    def __get_Lenovo_warranties(devices):
-        if len(devices) == 0:
-            return
-
+    def __generate_serial_number_to_device_dictionary(devices):
         lenovo_devices_by_serial_number_dictionary = dict()
 
         for device in devices:
@@ -153,15 +150,47 @@ class TOPdesk:
                 if hasattr(device, "serialNumber"):
                     lenovo_devices_by_serial_number_dictionary[device.serialNumber] = device
 
+        return lenovo_devices_by_serial_number_dictionary
+
+    @staticmethod
+    def __generate_Lenovo_query_parameters(lenovo_devices_by_serial_number_dictionary: dict):
+        serial_params = []
+
+        for serial, device in lenovo_devices_by_serial_number_dictionary.items():
+            model = getattr(device, "model", None)
+
+            if model:
+                serial_params.append(f"{serial}.{model}")
+            else:
+                serial_params.append(serial)
+
+        return serial_params
+
+    @staticmethod
+    def __fetch_Lenovo_warranties(serial_params):
+        warranties = []
+        chunk_size = 50
+
+        for i in range(0, len(serial_params), chunk_size):
+            chunk = serial_params[i:i + chunk_size]
+            params = "Serial=" + "&Serial=".join(chunk)
+            print(params)
+            warranties.extend(LenovoAPI.get_lenovo_warranties(params))
+
+        return warranties
+
+    @staticmethod
+    def __attach_Lenovo_warranties(devices):
+        if len(devices) == 0:
+            return
+
+        lenovo_devices_by_serial_number_dictionary = TOPdesk.__generate_serial_number_to_device_dictionary(devices)
         if len(lenovo_devices_by_serial_number_dictionary.keys()) == 0:
             return
 
         print(f"Searching for Lenovo warranties for the following devices: {lenovo_devices_by_serial_number_dictionary.keys()}")
-
-        # generate the list of serial numbers as "Serial=...&Serial=..."
-        params = "Serial=" + "&Serial=".join(lenovo_devices_by_serial_number_dictionary.keys())
-        # fetch Lenovo warranties and stuff
-        warranties = LenovoAPI.get_lenovo_warranties(params)
+        serial_params = TOPdesk.__generate_Lenovo_query_parameters(lenovo_devices_by_serial_number_dictionary)
+        warranties = TOPdesk.__fetch_Lenovo_warranties(serial_params)
 
         # some fallback values - None should never be returned
         if warranties is None:

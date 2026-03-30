@@ -27,7 +27,7 @@ class TOPdeskAsset:
             self.__managedDeviceOwnerType                       = data.get("managedDeviceOwnerType")
             self.__managementCertificateExpirationDate          = data.get("managementCertificateExpirationDate")
             self.manufacturer                                   = data.get("manufacturer")
-            self.__model                                        = data.get("model")
+            self.model                                        = data.get("model")
             self.__operatingSystem                              = data.get("operatingSystem")
             self.__osVersion                                    = data.get("osVersion")
             self.serialNumber                                   = data.get("serialNumber")
@@ -40,7 +40,7 @@ class TOPdeskAsset:
             self.__id                                           = data.get("id")
             self.__deviceName                                   = data.get("displayName")
             self.manufacturer                                   = data.get("manufacturer")
-            self.__model                                        = data.get("model")
+            self.model                                        = data.get("model")
             self.__operatingSystem                              = data.get("operatingSystem")
             self.__osVersion                                    = data.get("operatingSystemVersion")
 
@@ -112,7 +112,7 @@ class TOPdeskAsset:
         data_dict["ismanaged"] = self.__isSupervised
         data_dict["last-check-in"] = self.__lastSyncDateTime
         data_dict["manufacturer-1"] = self.manufacturer
-        data_dict["model-1"] = self.__model
+        data_dict["model-1"] = self.model
         data_dict["name-1"] = self.__deviceName
         data_dict["operating-system"] = self.__operatingSystem
         data_dict["os-version"] = self.__osVersion
@@ -247,7 +247,7 @@ class TOPdeskAsset:
                        lambda: target.get("manufacturer-1")),
 
             FieldCheck("model / model-1",
-                       lambda: self.__model,
+                       lambda: self.model,
                        lambda: target.get("model-1")),
 
             FieldCheck("operatingSystem / operating-system",
