@@ -40,7 +40,7 @@ class TOPdeskAsset:
             self.__id                                           = data.get("id")
             self.__deviceName                                   = data.get("displayName")
             self.manufacturer                                   = data.get("manufacturer")
-            self.model                                        = data.get("model")
+            self.model                                          = data.get("model")
             self.__operatingSystem                              = data.get("operatingSystem")
             self.__osVersion                                    = data.get("operatingSystemVersion")
 

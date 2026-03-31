@@ -110,7 +110,7 @@ class TOPdeskAsset:
             self.__id                                           = data.get("id")
             self.__deviceName                                   = data.get("displayName")
             self.manufacturer                                   = data.get("manufacturer")
-            self.model                                        = data.get("model")
+            self.model                                          = data.get("model")
             self.__operatingSystem                              = data.get("operatingSystem")
             self.__osVersion                                    = data.get("operatingSystemVersion")
 
@@ -1284,6 +1284,7 @@ class GraphDeviceProcessor:
                 )
                 topdesk_assets_that_must_not_be_deleted.append(idx)
 
+            cls.filter_devices(current_page_devices)
             cls.enrich_devices(current_page_devices)
 
             print(
@@ -1302,6 +1303,10 @@ class GraphDeviceProcessor:
 
     @classmethod
     def enrich_devices(cls, current_page_devices):
+        pass
+
+    @classmethod
+    def filter_devices(cls, current_page_devices):
         pass
 
 ########################################################################################################################
@@ -1324,6 +1329,13 @@ class Azure(GraphDeviceProcessor):
         for device_id, user in users.items():
             if device_id in device_ids:
                 device_ids[device_id]["userId"] = user
+
+    @classmethod
+    def filter_devices(cls, current_page_devices):
+        current_page_devices[:] = [
+            device for device in current_page_devices
+            if device.get("managementType") != "MDM"
+        ]
 
 ########################################################################################################################
 

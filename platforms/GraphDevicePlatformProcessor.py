@@ -36,6 +36,7 @@ class GraphDeviceProcessor:
                 )
                 topdesk_assets_that_must_not_be_deleted.append(idx)
 
+            cls.filter_devices(current_page_devices)
             cls.enrich_devices(current_page_devices)
 
             print(
@@ -54,4 +55,8 @@ class GraphDeviceProcessor:
 
     @classmethod
     def enrich_devices(cls, current_page_devices):
+        pass
+
+    @classmethod
+    def filter_devices(cls, current_page_devices):
         pass

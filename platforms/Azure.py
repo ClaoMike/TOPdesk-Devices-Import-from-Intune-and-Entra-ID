@@ -21,3 +21,10 @@ class Azure(GraphDeviceProcessor):
         for device_id, user in users.items():
             if device_id in device_ids:
                 device_ids[device_id]["userId"] = user
+
+    @classmethod
+    def filter_devices(cls, current_page_devices):
+        current_page_devices[:] = [
+            device for device in current_page_devices
+            if device.get("managementType") != "MDM"
+        ]
